@@ -236,8 +236,6 @@ if (scalar @extra > 0 && defined $genetic && -r $genetic && open(my $in, q{<}, $
                 my @data = split m/,/;
                 if (scalar @data >= 3 && defined $data[0] && $data[0] =~ m/X([\d\w\_\.]+)/ && defined $data[2] && $data[2] ne 'NA')
                 {
-                    #        if (m/^X([\d\w\_\.]+).*(\d+\.\d+)\s*$/) {
-                    #        if (m/^X([\d\w\_\.]+).*(\d+\.\d+)\s*$/) {
                     $tmp_list{$1} = $data[2];
                 }
             }
@@ -276,27 +274,3 @@ if (scalar @extra > 0 && defined $genetic && -r $genetic && open(my $in, q{<}, $
     print {*STDOUT} "Marker\tLG\tPosition\t", join("\t", @extra), "\n";
     for my $item (keys %list_markers) { print {*STDOUT} join("\t", @{$list_markers{$item}}), "\n"; }
 }
-##Create the lepmap input file
-# ./plinktomap.pl --ped batch_2.plink.ped --meta meta_parents.txt --lepmap
-##Create the SNPAssoc input file (ALL markers)
-# ./plinktomap.pl --plink batch_2.plink.map --ped batch_2.plink.ped --meta meta_parents.txt --snpassoc
-##Create the SNPAssoc input file (mappable marker see LepMap)
-# ./plinktomap.pl --plink batch_2.plink.map --ped batch_2.plink.ped --meta meta_parents.txt --snpassoc --map C7_C2.jsmap.txt
-##Create the SNPAssoc input file (mappable marker see LepMap) and LepMap Genetic Map (based on the female map)
-# ./plinktomap.pl --plink batch_2.plink.map --ped batch_2.plink.ped --meta meta_parents.txt --snpassoc --map C7_C2.jsmap.txt --gmap C7_C2.ordered.txt --female
-##Create the final genetic map
-#./plinktomap.pl --genetic test.gmap --extra test.LiceAssocSex --extra test.LiceAssocSur --marker stacks/batch_2.catalog.tags.tsv
-#./genetic_mapper.pl -v --col 1 --var --compact --plot --pos --scale=5 --map=test.final -lod > gmap.svg
-##https://www.biostars.org/p/114352/
-##https://www.biostars.org/p/5862/
-##https://software.broadinstitute.org/gatk/gatkdocs/org_broadinstitute_gatk_tools_walkers_variantutils_VariantsToBinaryPed.php
-#library(SNPassoc)
-#Lice <- read.delim("C7_C2.snpassoc");
-##order <- read.delim2("map.2.all.tsv",header=TRUE);
-##order$Marker <- paste('X',order$Marker,sep="");
-##LiceAssoc<-setupSNP(data=Lice,colSNPs=5:length(Lice), sort=TRUE, info=order,sep="/");
-#LiceAssoc<-setupSNP(data=Lice,colSNPs=5:length(Lice), sep="/");
-#LiceAssocSex<-WGassociation(sex~1, data=LiceAssoc, model="co")
-#
-#Bonferroni.sig(LiceAssocSex, model = "co", alpha = 0.05, include.all.SNPs=FALSE)
-#plot(LiceAssocSex, whole=FALSE, print.label.SNPs = FALSE)

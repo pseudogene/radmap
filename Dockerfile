@@ -41,6 +41,6 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get install -y r-base r-cran-stringi r-cr
 RUN mkdir /map
 
 COPY plinktomap.pl /usr/local/bin/plinktomap.pl
-COPY test/.* /map/
+COPY test/* /map/
 
 WORKDIR /map

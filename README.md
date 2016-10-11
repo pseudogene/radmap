@@ -96,7 +96,7 @@ java -cp /usr/local/bin/ Filtering data=input.linkage dataTolerance=0.001 MAFLim
 #Test the best LOD limit (form 0.5 t 15)
 for I in $(seq 0.5 0.5 15)
 do
-  java -cp /usr/local/bin/ SeparateChromosomes data=input_f.linkage sizeLimit=10 lodLimit={$I} >/dev/null 2>lod.log
+  java -cp /usr/local/bin/ SeparateChromosomes data=input_f.linkage sizeLimit=10 lodLimit=${I} >/dev/null 2>>lod.log
 done
 
 grep "Number of LGs" lod.log >lod.txt
