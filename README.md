@@ -43,7 +43,7 @@ docker run -i -t --rm -v $(pwd)/results:/map radmap /bin/bash
 ## Data importation
 plink _classic_ file [PED](http://pngu.mgh.harvard.edu/~purcell/plink/data.shtml#ped) and [MAP](http://pngu.mgh.harvard.edu/~purcell/plink/data.shtml#map) are required as well as a **pedigree file**.
 
-The **pedigree file** consists of on columns 1-4+. The columns are separated by tabs. The Columns 1-4 are individual name, father, mother and sex; the next columns are for extra phenotypes: phenotype\_1 to phenotype\_n. The phenotypes are not required, but will be helpful for the GWAS analysis.
+The **pedigree file** consists of on columns 1-4+. The columns are separated by tabs. The columns 1-4 are individual name, father, mother and sex; the next columns are for extra phenotypes: phenotype\_1 to phenotype\_n. The phenotypes are not required, but will be helpful for the GWAS analysis.
 
 ```
 sample     father  mother  sex  phenotype_1
@@ -153,7 +153,8 @@ plot(SNPAssocSex, whole=FALSE, print.label.SNPs = FALSE)
 library(SNPassoc)
 SNP <- read.delim2("input.snp",header=TRUE);
 order <- read.delim2("input.gmap");
-order$Marker <- paste('X',order$Marker,sep="");
+order$Marker <- paste('X',order$Marker,sep=""); #If Stacks output
+#order$Marker<-gsub(":", ".", order$Marker);     #If dDocent output
 SNPAssoc<-setupSNP(data=SNP,colSNPs=4:length(SNP), sort=TRUE, info=order,sep="/");
 SNPAssocSex<-WGassociation(sex, data=SNPAssoc, model="codominant");
 BonSNPAssocSex<-Bonferroni.sig(SNPAssocSex, model = "codominant", alpha = 0.05,include.all.SNPs=FALSE);
