@@ -1,6 +1,6 @@
 #!/usr/bin/perl
-# $Revision: 0.3 $
-# $Date: 2016/10/13 $
+# $Revision: 0.4 $
+# $Date: 2016/10/14 $
 # $Id: plinktomap.pl $
 # $Author: Michael Bekaert $
 #
@@ -61,6 +61,13 @@ RAD-tags to Genetic Map (radmap)
 
     STDOUT > Genetic Map
 
+  # Manual editing
+    --ped         MANDATORY
+    --genetic     MANDATORY
+    --edit
+
+    STDOUT > Mappable markers list
+
   Options
     --meta <pedigree file>
          The pedigree file consists of on columns 1-4+. The columns are separated by
@@ -73,7 +80,7 @@ RAD-tags to Genetic Map (radmap)
            P0_dam     0       0       F    -
            P0_sir     0       0       M    -
     --plink <plink map file>
-         PLINK PED file path with full haplotypes.
+         PLINK MAP file path with full haplotypes.
     --ped <plink ped file>
          PLINK PED file path with full haplotypes.
     --map <mappable markers list>
@@ -97,6 +104,8 @@ RAD-tags to Genetic Map (radmap)
          Enable R/SNPAssoc pre-processing.
     --lepmap
          Enable LepMap pre-processing.
+    --lepmap
+         Enable Manual editing mode.
 
 
 =head1 DESCRIPTION
@@ -143,10 +152,10 @@ use warnings;
 use Getopt::Long;
 
 #----------------------------------------------------------
-our ($VERSION) = 0.3;
+our ($VERSION) = 0.4;
 
 #----------------------------------------------------------
-my ($female, $lepmap, $snpassoc, $loc, $lod, $plink, $ped, $parentage, $map, $genmap, $genetic, $markers) = (0, 0, 0, 0, 0);
+my ($female, $lepmap, $snpassoc, $edit, $loc, $lod, $plink, $ped, $parentage, $map, $genmap, $genetic, $markers) = (0, 0, 0, 0, 0, 0);
 my @extra;
 GetOptions(
            'plink:s'   => \$plink,
@@ -160,6 +169,7 @@ GetOptions(
            'lepmap!'   => \$lepmap,
            'pos!'      => \$loc,
            'lod!'      => \$lod,
+           'edit!'     => \$edit,
            'snpassoc!' => \$snpassoc,
            'markers:s' => \$markers
           );
@@ -192,6 +202,7 @@ if (scalar keys %parents_table > 0 && $lepmap && defined $ped && -r $ped && open
     # PEB
     # # Stacks v1.42;  PLINK v1.07; October 06, 2016
     # C7	F1_dam_C7	0	0	0	0	G	T	A	A	G	T	A	G	G	...
+
     # LINKAGE
     # #java Filtering  data=C07_LSalAtl2sD140.linkage.txt dataTolerance=0.001
     # C7	P0_sir_C7	0	0	1	0	1 1	0 0	1 2	1 2	1 2	1 2	...
@@ -212,21 +223,23 @@ if (scalar keys %parents_table > 0 && $lepmap && defined $ped && -r $ped && open
 }
 
 #To SNPAssoc
-if (scalar keys %parents_table > 0 && $snpassoc && defined $ped && -r $ped && defined $plink && -r $plink && open(my $in, q{<}, $plink))
+elsif (scalar keys %parents_table > 0 && $snpassoc && defined $ped && -r $ped && defined $plink && -r $plink && open($in, q{<}, $plink))
 {
     my @list_marker;
 
     # PEB
     # # Stacks v1.42;  PLINK v1.07; October 06, 2016
     # C7	F1_dam_C7	0	0	0	0	G	T	A	A	G	T	A	G	G	...
+
     # plink MAP
     # # Stacks v1.42;  PLINK v1.07; October 06, 2016
-    # LSalAtl2s1	19757_13	0	4466                o
-    # LSalAtl2s1	19756_74	0	4550          x
-    # LSalAtl2s1	19491_4	0	106094            x     o
-    # LSalAtl2s1	19492_81	0	106518        x     o
-    # LSalAtl2s1	19498_31	0	118987              o
+    # LSalAtl2s1	19757_13	0	4466
+    # LSalAtl2s1	19756_74	0	4550
+    # LSalAtl2s1	19491_4	0	106094
+    # LSalAtl2s1	19492_81	0	106518
+    # LSalAtl2s1	19498_31	0	118987
     # LSalAtl2s1	19749_27	0	381049
+
     # LEPMAP MAP
     # #java SeparateChromosomes  data=C07_LSalAtl2sD140_f.linkage.txt lodLimit=6.5 sizeLimit=2
     # 0
@@ -235,6 +248,7 @@ if (scalar keys %parents_table > 0 && $snpassoc && defined $ped && -r $ped && de
     # 6
     # 0
     # 0
+
     # SNPAssoc
     # id	Sex	Surviving	33	40	60	120	136	157	180
     # F2_C7_073	Female	2	A/A	-	A/B	A/B	A/B	A/B
@@ -313,7 +327,7 @@ if (scalar keys %parents_table > 0 && $snpassoc && defined $ped && -r $ped && de
         close $in;
     }
 }
-if (scalar @extra > 0 && defined $genetic && -r $genetic && open(my $in, q{<}, $genetic))
+elsif (scalar @extra > 0 && defined $genetic && -r $genetic && open($in, q{<}, $genetic))
 {
     my %list_markers;
 
@@ -387,8 +401,41 @@ if (scalar @extra > 0 && defined $genetic && -r $genetic && open(my $in, q{<}, $
     print {*STDOUT} "Marker\tLG\tPosition\t", join("\t", @extra), "\n";
     for my $item (keys %list_markers) { print {*STDOUT} join("\t", @{$list_markers{$item}}), "\n"; }
 }
+elsif ($edit && defined $plink && -r$plink && defined $genetic && -r $genetic && open($in, q{<}, $genetic))
+{
+    my %list_markers;
+    while (<$in>)
+    {
+        next if (m/^(#|Marker)/);
+        chomp;
+        my @data = split m/\t/;
+        if (scalar @data >= 2 && defined $data[0] && defined $data[1] ) { $list_markers{$data[0]} = $data[1]; }
+    }
+    close $in;
+    
+    # plink MAP
+    # # Stacks v1.42;  PLINK v1.07; October 06, 2016
+    # LSalAtl2s1	19757_13	0	4466
+    # LSalAtl2s1	19756_74	0	4550
+    # LSalAtl2s1	19491_4	0	106094
+    # LSalAtl2s1	19492_81	0	106518
+    # LSalAtl2s1	19498_31	0	118987
+    # LSalAtl2s1	19749_27	0	381049
+    
+    if ( open $in, q{<}, $plink ) {
+    	print {*STDOUT} "# plinktomap edit mode\n";
+        while (<$in>)
+        {
+            next if (m/^#/);
+            chomp;
+            my @data = split m/\t/;
+            print {*STDOUT} (scalar @data >= 2 && exists  $list_markers{$data[1]} ? $list_markers{$data[1]} : q{0}), "\n";
+        }
+        close $in;
+    }
+}
 else
 {
     print {*STDERR}
-      "..:: RAD-tags to Genetic Map ::..\n\nUsage: $0 [options]\n\n# LepMap pre-processing\n  --lepmap      MANDATORY\n  --ped         MANDATORY\n  --meta        MANDATORY\n\n  STDOUT > LepMap (linkage) input file\n\n# R/SNPAssoc pre-processing\n  --snpassoc    MANDATORY\n  --plink       MANDATORY\n  --ped         MANDATORY\n  --meta        MANDATORY\n  --map         OPTIONAL\n  --gmap        OPTIONAL\n  --female      OPTIONAL\n\n  STDOUT > SNPassoc input file\n  STDERR 2> Genetic Map\n\n# Post GWAS processing\n  --genetic     MANDATORY\n  --extra       MANDATORY (at least once)\n  --markers     OPTIONAL\n  --pos         OPTIONAL\n  --lod         OPTIONAL \n  \n  STDOUT > Genetic Map\n  \nOptions\n  --meta <pedigree file>\n       The pedigree file consists of on columns 1-4+. The columns are separated by\n       tabs. The columns 1-4 are individual name, father, mother and sex; the next\n       columns are for extra phenotypes: phenotype_1 to phenotype_n. The phenotypes\n       are not required, but will be helpful for the GWAS analysis.\n         sample     father  mother  sex  phenotype_1\n         F1_C2_070  P0_sir  P0_dam  M    30\n         F1_C2_120  P0_sir  P0_dam  F    1\n         P0_dam     0       0       F    -\n         P0_sir     0       0       M    -\n  --plink <plink map file>\n       PLINK PED file path with full haplotypes.\n  --ped <plink ped file>\n       PLINK PED file path with full haplotypes.\n  --map <mappable markers list>\n       Mappable markers list as generated by LepMap \"SeparateChromosomes\" and\n       \"JoinSingles\" functions.\n  --gmap <ordered markers file>\n       Ordered genetic map generated by LepMap.\n  --genetic <genetic map file>\n       Genetic Map as generated by R/SNPAssoc pre-processing step.\n  --markers <batch_<n>.catalog.tags.tsv file>\n       Path to STACKS catalog.tag file, including marker sequences and positions.\n  --extra\n       GWAS results generated by R/SNPassoc (csv format) to be added to the genetic map.\n  --lod\n       Convert the P-value of the GWAS results to LOD (LOD=-log(P-value)/log(10)).\n  --pos\n       Provide the marker chromosome/contig and location. (requires --markers)\n  --female\n       Select the female only map rather than male or average mapping. (requires --gmap)\n  --snpassoc\n       Enable R/SNPAssoc pre-processing.\n  --lepmap\n       Enable LepMap pre-processing.\n\n";
+      "..:: RAD-tags to Genetic Map ::..\n\nUsage: $0 [options]\n\n# LepMap pre-processing\n  --lepmap      MANDATORY\n  --ped         MANDATORY\n  --meta        MANDATORY\n\n  STDOUT > LepMap (linkage) input file\n\n# R/SNPAssoc pre-processing\n  --snpassoc    MANDATORY\n  --plink       MANDATORY\n  --ped         MANDATORY\n  --meta        MANDATORY\n  --map         OPTIONAL\n  --gmap        OPTIONAL\n  --female      OPTIONAL\n\n  STDOUT > SNPassoc input file\n  STDERR 2> Genetic Map\n\n# Post GWAS processing\n  --genetic     MANDATORY\n  --extra       MANDATORY (at least once)\n  --markers     OPTIONAL\n  --pos         OPTIONAL\n  --lod         OPTIONAL \n  \n  STDOUT > Genetic Map\n  \nOptions\n  --meta <pedigree file>\n       The pedigree file consists of on columns 1-4+. The columns are separated by\n       tabs. The columns 1-4 are individual name, father, mother and sex; the next\n       columns are for extra phenotypes: phenotype_1 to phenotype_n. The phenotypes\n       are not required, but will be helpful for the GWAS analysis.\n         sample     father  mother  sex  phenotype_1\n         F1_C2_070  P0_sir  P0_dam  M    30\n         F1_C2_120  P0_sir  P0_dam  F    1\n         P0_dam     0       0       F    -\n         P0_sir     0       0       M    -\n  --plink <plink map file>\n       PLINK MAP file path with full haplotypes.\n  --ped <plink ped file>\n       PLINK PED file path with full haplotypes.\n  --map <mappable markers list>\n       Mappable markers list as generated by LepMap \"SeparateChromosomes\" and\n       \"JoinSingles\" functions.\n  --gmap <ordered markers file>\n       Ordered genetic map generated by LepMap.\n  --genetic <genetic map file>\n       Genetic Map as generated by R/SNPAssoc pre-processing step.\n  --markers <batch_<n>.catalog.tags.tsv file>\n       Path to STACKS catalog.tag file, including marker sequences and positions.\n  --extra\n       GWAS results generated by R/SNPassoc (csv format) to be added to the genetic map.\n  --lod\n       Convert the P-value of the GWAS results to LOD (LOD=-log(P-value)/log(10)).\n  --pos\n       Provide the marker chromosome/contig and location. (requires --markers)\n  --female\n       Select the female only map rather than male or average mapping. (requires --gmap)\n  --snpassoc\n       Enable R/SNPAssoc pre-processing.\n  --lepmap\n       Enable LepMap pre-processing.\n\n";
 }
