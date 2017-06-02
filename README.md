@@ -1,4 +1,4 @@
-> Warning: This is a pre-release version, we are actively developing this repository. Issues, bugs and features will happen, rise and change. WE DO NOT RECOMMAND USING THE CURRENT RELEASE!
+> Warning: This is a pre-release version, we are actively developing this repository. Issues, bugs and features will happen, rise and change.
 
 # RAD-tag to Genetic Map
 
@@ -41,7 +41,7 @@ docker run -i -t --rm -v $(pwd)/results:/map radmap /bin/bash
 ```
 
 ## Data importation
-plink _classic_ file [PED](http://pngu.mgh.harvard.edu/~purcell/plink/data.shtml#ped) and [MAP](http://pngu.mgh.harvard.edu/~purcell/plink/data.shtml#map) are required as well as a **pedigree file**.
+plink _classic_ file [PED](http://zzz.bwh.harvard.edu/plink/data.shtml#ped) and [MAP](http://zzz.bwh.harvard.edu/plink/data.shtml#map) are required as well as a **pedigree file**.
 
 The **pedigree file** consists of on columns 1-4+. The columns are separated by tabs. The columns 1-4 are individual name, father, mother and sex; the next columns are for extra phenotypes: phenotype\_1 to phenotype\_n. The phenotypes are not required, but will be helpful for the GWAS analysis.
 
@@ -65,7 +65,7 @@ or
 
 ```
 e.g.:
- populations -P ./stakcs/ -M map.pop -b 1 -p 2 -r 0.75 --write_single_snp -k --plink
+ populations -P ./stakcs/ -M map.pop -b 1 -p 2 -r 0.75 --min_maf 0.01 --write_single_snp -k --plink
 ```
 
 This should generate the ped and map file in `./stakcs/batch_1.plink.ped` and `./stakcs/batch_1.plink.map`.
