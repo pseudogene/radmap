@@ -151,9 +151,9 @@ plot(SNPAssocSex, whole=FALSE, print.label.SNPs = FALSE)
 
 ```
 library(SNPassoc)
-SNP <- read.delim2("input.snp",header=TRUE);
-order <- read.delim2("input.gmap");
-order$Marker <- paste('X',order$Marker,sep=""); #If Stacks output
+SNP <- read.delim("input.snp",header=TRUE);
+order <- read.delim("input.gmap");
+order$Marker <- paste('X',order$Marker,sep="");  #If Stacks output
 #order$Marker<-gsub(":", ".", order$Marker);     #If dDocent output
 SNPAssoc<-setupSNP(data=SNP,colSNPs=4:length(SNP), sort=TRUE, info=order,sep="/");
 SNPAssocSex<-WGassociation(sex, data=SNPAssoc, model="codominant");
@@ -176,7 +176,7 @@ plinktomap.pl --genetic input.gmap --extra AssocSex.csv >genetic_map.tsv
 #### Create the final genetic map with the marker sequences and locations (Stacks only)   (recommended **for publication**)
 
 ```
-plinktomap.pl --genetic input.gmap --extra AssocSex.csv --marker batch_<n>.catalog.tags.tsv --loc >genetic_map.tsv
+plinktomap.pl --genetic input.gmap --extra AssocSex.csv --markers batch_<n>.catalog.tags.tsv --loc >genetic_map.tsv
 ```
 
 ## Issues
