@@ -1,11 +1,11 @@
 #!/usr/bin/perl
-# $Revision: 0.7 $
-# $Date: 2017/06/30 $
+# $Revision: 0.8 $
+# $Date: 2018/01/11 $
 # $Id: plinktomap.pl $
 # $Author: Michael Bekaert $
 #
 # RAD-tags to Genetic Map (radmap)
-# Copyright (C) 2016-2017 Bekaert M <michael.bekaert@stir.ac.uk>
+# Copyright (C) 2016-2018 Bekaert M <michael.bekaert@stir.ac.uk>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -35,6 +35,8 @@ RAD-tags to Genetic Map (radmap)
 
   # LepMap pre-processing
     --lepmap      MANDATORY
+    or
+    --lepmap3     MANDATORY
     --ped         MANDATORY
     --meta        MANDATORY
 
@@ -157,10 +159,10 @@ use warnings;
 use Getopt::Long;
 
 #----------------------------------------------------------
-our ($VERSION) = 0.7;
+our ($VERSION) = 0.8;
 
 #----------------------------------------------------------
-my ($female, $lepmap, $snpassoc, $edit, $loc, $lod, $plink, $ped, $parentage, $map, $genmap, $genetic, $markers, $fasta) = (0, 0, 0, 0, 0, 0);
+my ($female, $lepmap, $lepmap3, $snpassoc, $edit, $loc, $lod, $plink, $ped, $parentage, $map, $genmap, $genetic, $markers, $fasta) = (0, 0, 0, 0, 0, 0, 0);
 my @extra;
 GetOptions(
            'plink:s'   => \$plink,
@@ -172,6 +174,7 @@ GetOptions(
            'extra:s'   => \@extra,
            'female!'   => \$female,
            'lepmap!'   => \$lepmap,
+           'lepmap3!'  => \$lepmap3,
            'pos!'      => \$loc,
            'lod!'      => \$lod,
            'edit!'     => \$edit,
@@ -201,10 +204,10 @@ if (defined $parentage && -r $parentage && open(my $in, q{<}, $parentage))
 }
 
 #To LepMap
-if (scalar keys %parents_table > 0 && $lepmap && defined $ped && -r $ped && open(my $in, q{<}, $ped))
+if (scalar keys %parents_table > 0 && ($lepmap || $lepmap3)  && defined $ped && -r $ped && open(my $in, q{<}, $ped))
 {
     my %table = (A => 1, C => 2, G => 3, T => 4, N => 0, 0 => 0);
-
+    my $last = 0;
     # PEB
     # # Stacks v1.42;  PLINK v1.07; October 06, 2016
     # C7	F1_dam_C7	0	0	0	0	G	T	A	A	G	T	A	G	G	...
@@ -221,8 +224,18 @@ if (scalar keys %parents_table > 0 && $lepmap && defined $ped && -r $ped && open
         my @data = split m/\t/;
         if (scalar @data > 8 && defined $data[0] && defined $data[1] && exists $parents_table{$data[1]})
         {
-            print $data[0], "\t", $data[1], "\t", $parents_table{$data[1]}[1], "\t", $parents_table{$data[1]}[2], "\t", ($parents_table{$data[1]}[3] =~ /^F/ ? q{2} : ($parents_table{$data[1]}[3] =~ /^M/ ? q{1} : q{0})), "\t0";
-            for my $i (6 .. (scalar @data) - 1) { print "\t", (defined $data[$i] && exists $table{$data[$i]} ? $table{$data[$i]} : q{0}); }
+            if ($lepmap3) {
+            	if (!exists $table{$parents_table{$data[1]}[1]}) {$table{$parents_table{$data[1]}[1]} = ++$last;}
+            	if (!exists $table{$parents_table{$data[1]}[2]}) {$table{$parents_table{$data[1]}[2]} = ++$last;}
+            	if (!exists $table{$data[1]}) { $table{$data[1]} = ++$last;}
+            	print $data[0], "\t", $table{$data[1]}, "\t", $table{$parents_table{$data[1]}[1]}, "\t", $table{$parents_table{$data[1]}[2]}, "\t", ($parents_table{$data[1]}[3] =~ /^F/ ? q{2} : ($parents_table{$data[1]}[3] =~ /^M/ ? q{1} : q{0})), "\t0";
+                for (my $i = 6; $i < scalar @data; $i = $i + 2) {
+                    print "\t", (defined $data[$i] && exists $table{$data[$i]} ? $table{$data[$i]} : q{0});
+                    print q{ }, (defined $data[$i+1] && exists $table{$data[$i+1]} ? $table{$data[$i+1]} : q{0});
+                }
+            } else {
+                for my $i (6 .. (scalar @data) - 1) { print "\t", (defined $data[$i] && exists $table{$data[$i]} ? $table{$data[$i]} : q{0}); }
+            }
             print "\n";
         }
     }
