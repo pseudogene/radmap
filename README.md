@@ -79,9 +79,9 @@ vcftools --vcf Final.recode.vcf --plink --maf 0.01 --out plink
 ```
 
 ## LepMap2
-See the official documentation at https://sourceforge.net/p/lepmap2/wiki/Home/
+See the official documentation at [https://sourceforge.net/p/lepmap2/wiki/Home/](https://sourceforge.net/p/lepmap2/wiki/Home/)
 
-#### Create the lepmap input file  (recommended)
+#### Create the lepmap input file (recommended)
 
 ```
 plinktomap.pl --ped plink.ped --meta meta_parents.txt --lepmap >input.linkage
@@ -91,24 +91,58 @@ plinktomap.pl --ped plink.ped --meta meta_parents.txt --lepmap >input.linkage
 
 ```
 #Filter dataset
-java -cp /usr/local/bin/ Filtering data=input.linkage dataTolerance=0.001 MAFLimit=0.01 >input_f.linkage
+java -cp /usr/local/bin/lepmap2 Filtering data=input.linkage dataTolerance=0.001 MAFLimit=0.01 >input_f.linkage
 
-#Test the best LOD limit (form 0.5 t 15)
+#Test the best LOD limit (form 0.5 to 15)
 for I in $(seq 0.5 0.5 15)
 do
-  java -cp /usr/local/bin/ SeparateChromosomes data=input_f.linkage sizeLimit=10 lodLimit=${I} >/dev/null 2>>lod.log
+  java -cp /usr/local/bin/lepmap2 SeparateChromosomes data=input_f.linkage sizeLimit=10 lodLimit=${I} >/dev/null 2>>lod.log
 done
 
 grep "Number of LGs" lod.log >lod.txt
 cat lod.txt
 
 #For the best LOD limit (e.g. 5.5)
-java -cp /usr/local/bin/ SeparateChromosomes data=input_f.linkage sizeLimit=10 lodLimit=5.5 >input.map
-java -cp /usr/local/bin/ JoinSingles input.map data=input_f.linkage lodLimit=0.5 >input.jsmap
+java -cp /usr/local/bin/lepmap2 SeparateChromosomes data=input_f.linkage sizeLimit=10 lodLimit=5.5 >input.map
+java -cp /usr/local/bin/lepmap2 JoinSingles input.map data=input_f.linkage lodLimit=0.5 >input.jsmap
 
 #Calculate a genetic map (see LepMap2 documentation for more details)
-java -cp /usr/local/bin/ OrderMarkers numThreads=2 useKosambi=1 maxDistance=50 map=input.jsmap data=input_f.linkage >lepmap.ordered
+java -cp /usr/local/bin/lepmap2 OrderMarkers useKosambi=1 maxDistance=50 map=input.jsmap data=input_f.linkage >lepmap.ordered
 ```
+
+## LepMap3 (recommended)
+See the official documentation at [https://sourceforge.net/p/lep-map3/wiki/Home/](https://sourceforge.net/p/lep-map3/wiki/Home/)
+
+#### Create the lepmap input file (recommended)
+
+```
+plinktomap.pl --ped plink.ped --meta meta_parents.txt --lepmap3 >input.linkage
+awk -f /usr/local/bin/linkage2post.awk input.linkage | java -cp /usr/local/bin/lepmap2 Transpose > input.post
+```
+
+#### Run LepMap3
+
+```
+#Filter dataset
+java -cp /usr/local/bin/lepmap3 Filtering2 data=input.post dataTolerance=0.001 MAFLimit=0.01 >input_f.call
+
+#Test the best LOD limit (form 5 to 30)
+for I in $(seq 5 1 30)
+do
+  java -cp /usr/local/bin/lepmap3 SeparateChromosomes2 data=input_f.call lodLimit="${I}" sizeLimit=10 >/dev/null 2>>lod.log
+done
+
+grep "Number of LGs" lod.log >lod.txt
+cat lod.txt
+
+#For the best LOD limit (e.g. 8)
+  java -cp /usr/local/bin/lepmap3 SeparateChromosomes2 data=input_f.call lodLimit=8 sizeLimit=10 >input.map
+  java -cp /usr/local/bin/lepmap3 JoinSingles2All map=input.map data=input_f.call lodLimit=0.5 iterate=1 >input.jsmap
+
+#Calculate a genetic map (see LepMap3 documentation for more details)
+  java -cp /usr/local/bin/lepmap3 OrderMarkers2 useKosambi=1 maxDistance=50 map=input.jsmap data=input_f.call >lepmap.ordered
+```
+
 
 ## R/SNPassoc
 See the official documentation at https://CRAN.R-project.org/package=SNPassoc
@@ -127,7 +161,7 @@ plinktomap.pl --plink plink.map --ped plink.ped --meta meta_parents.txt --snpass
 plinktomap.pl --plink plink.map --ped plink.ped --meta meta_parents.txt --map input.jsmap --snpassoc >input.mappable.snp
 ```
 
-#### Create the SNPAssoc input file (based on LepMap2 Genetic Map, `female` map)  (recommended)
+#### Create the SNPAssoc input file (based on LepMap2/3 Genetic Map, `female` map)  (recommended)
 
 ```
 plinktomap.pl --plink plink.map --ped plink.ped --meta meta_parents.txt --map input.jsmap --gmap lepmap.ordered --female --snpassoc >input.snp 2>input.gmap
@@ -142,12 +176,12 @@ library(SNPassoc)
 SNP <- read.delim("input.all.snp");
 SNPAssoc<-setupSNP(data=SNP,colSNPs=4:length(SNP), sep="/");
 SNPAssocSex<-WGassociation(sex~1, data=SNPAssoc, model="codominant")
-BonSNPAssocSex<-Bonferroni.sig(SNPAssocSex, model = "codominant", alpha = 0.05,include.all.SNPs=FALSE);
+BonSNPAssocSex<-Bonferroni.sig(SNPAssocSex, model = "codominant", alpha = 0.05, include.all.SNPs=FALSE);
 summary(SNPAssocSex)
 plot(SNPAssocSex, whole=FALSE, print.label.SNPs = FALSE)
 ```
 
-#### based on LepMap2 Genetic Map  (recommended)
+#### based on LepMap2/3 Genetic Map  (recommended)
 
 ```
 library(SNPassoc)
@@ -157,7 +191,7 @@ order$Marker <- paste('X',order$Marker,sep="");  #If Stacks output
 #order$Marker<-gsub(":", ".", order$Marker);     #If dDocent output
 SNPAssoc<-setupSNP(data=SNP,colSNPs=4:length(SNP), sort=TRUE, info=order,sep="/");
 SNPAssocSex<-WGassociation(sex, data=SNPAssoc, model="codominant");
-BonSNPAssocSex<-Bonferroni.sig(SNPAssocSex, model = "codominant", alpha = 0.05,include.all.SNPs=FALSE);
+BonSNPAssocSex<-Bonferroni.sig(SNPAssocSex, model = "codominant", alpha = 0.05, include.all.SNPs=FALSE);
 summary(SNPAssocSex)
 png("AssocSex.png");
 plot(SNPAssocSex, whole=FALSE, print.label.SNPs = FALSE, sort.chromosome=TRUE);
