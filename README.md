@@ -21,7 +21,7 @@ All required files and tools run in a self-contained [docker](https://www.docker
 #### bClone the repository
 
 ```
-git clone https://github.com/pseudogene/radmap.git
+git clone --recursive https://github.com/pseudogene/radmap.git
 cd radmap
 ```
 
@@ -140,7 +140,7 @@ cat lod.txt
   java -cp /usr/local/bin/lepmap3 JoinSingles2All map=input.map data=input_f.call lodLimit=0.5 iterate=1 >input.jsmap
 
 #Calculate a genetic map (see LepMap3 documentation for more details)
-  java -cp /usr/local/bin/lepmap3 OrderMarkers2 useKosambi=1 maxDistance=50 map=input.jsmap data=input_f.call >lepmap.ordered
+  java -cp /usr/local/bin/lepmap3 OrderMarkers2 useKosambi=1 map=input.jsmap data=input_f.call >lepmap.ordered
 ```
 
 
