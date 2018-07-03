@@ -1,6 +1,6 @@
 #!/usr/bin/perl
-# $Revision: 0.9 $
-# $Date: 2018/04/03 $
+# $Revision: 0.10 $
+# $Date: 2018/07/03 $
 # $Id: plinktomap.pl $
 # $Author: Michael Bekaert $
 #
@@ -137,7 +137,7 @@ The latest version of genetic_mapper.pl is available at
 
 =head1 LICENSE
 
-Copyright 2016-2017 - Michael Bekaert
+Copyright 2016-2018 - Michael Bekaert
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -159,7 +159,7 @@ use warnings;
 use Getopt::Long;
 
 #----------------------------------------------------------
-our ($VERSION) = 0.9;
+our ($VERSION) = 0.10;
 
 #----------------------------------------------------------
 my ($female, $lepmap, $lepmap3, $snpassoc, $edit, $loc, $lod, $plink, $ped, $parentage, $map, $genmap, $genetic, $markers, $fasta) = (0, 0, 0, 0, 0, 0, 0);
@@ -255,8 +255,8 @@ elsif (scalar keys %parents_table > 0 && $snpassoc && defined $ped && -r $ped &&
 
     # PEB
     # # Stacks v1.42;  PLINK v1.07; October 06, 2016
-
     # C7	F1_dam_C7	0	0	0	0	G	T	A	A	G	T	A	G	G	...
+
     # plink MAP
     # # Stacks v1.42;  PLINK v1.07; October 06, 2016
     # LSalAtl2s1	19757_13	0	4466
@@ -285,7 +285,7 @@ elsif (scalar keys %parents_table > 0 && $snpassoc && defined $ped && -r $ped &&
         next if (m/^#/);
         chomp;
         my @data = split m/\t/;
-        if (scalar @data >= 2 && defined $data[0] && defined $data[1]) { push @list_marker, $data[1]; push @mask_marker, 1; }
+        if (scalar @data >= 2 && defined $data[0] && defined $data[1]) { push @list_marker, $data[1]; push @mask_marker, 1 if (defined $genmap || defined $map); }
     }
     close $in;
     if (scalar @list_marker > 0 && defined $genmap && -r $genmap && open($in, q{<}, $genmap))
@@ -332,6 +332,8 @@ elsif (scalar keys %parents_table > 0 && $snpassoc && defined $ped && -r $ped &&
             $i++;
         }
         close $in;
+    } else {
+      undef @mask_marker;
     }
     if (scalar @list_marker > 0 && open($in, q{<}, $ped))
     {
