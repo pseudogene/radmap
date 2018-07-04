@@ -16,32 +16,28 @@
 # You should have received a copy of the GNU General Public License v3
 # along with radmap. If not, see <http://www.gnu.org/licenses/>.
 #
-FROM ubuntu:17.10
+FROM ubuntu:18.04
 MAINTAINER Michael Bekaert <michael.bekaert@stir.ac.uk>
 
-LABEL description="RAD-tags to Genetic Map Docker" version="2.0" Vendor="Institute of Aquaculture, University of Stirling"
+LABEL description="RAD-tags to Genetic Map Docker" version="3.0" Vendor="Institute of Aquaculture, University of Stirling"
 
 USER root
 
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y dirmngr --no-install-recommends
 
-RUN echo "deb http://cran.rstudio.com/bin/linux/ubuntu artful/" >> /etc/apt/sources.list && \
-    gpg --keyserver keyserver.ubuntu.com --recv-key E084DAB9 && \
-    gpg -a --export E084DAB9 | apt-key add - && \
-    apt-get update
+#RUN echo "deb http://cran.rstudio.com/bin/linux/ubuntu artful/" >> /etc/apt/sources.list && \
+#    gpg --keyserver keyserver.ubuntu.com --recv-key E084DAB9 && \
+#    gpg -a --export E084DAB9 | apt-key add - && \
+#    apt-get update
 
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y wget unzip ca-certificates-java default-jre-headless librsvg2-bin --no-install-recommends && \
     wget -q --no-check-certificate https://sourceforge.net/projects/lepmap2/files/binary.zip -O /root/lepmap2.zip && \
-    wget -q --no-check-certificate https://sourceforge.net/projects/lepmap2/files/scripts.zip -O /root/scripts2.zip && \
     wget -q --no-check-certificate https://sourceforge.net/projects/lep-map3/files/binary.zip -O /root/lepmap3.zip && \
     cd /root && \
     unzip lepmap2.zip && \
     mv bin /usr/local/bin/lepmap2 && \
     rm -rf README lepmap2.zip && \
-    unzip scripts2.zip && \
-    mv scripts/linkage2post.awk /usr/local/bin/linkage2post.awk && \
-    rm -rf scripts scripts2.zip && \
     unzip lepmap3.zip && \
     mv bin /usr/local/bin/lepmap3 && \
     rm -rf README README.txt lepmap3.zip
@@ -52,6 +48,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get install -y r-base r-cran-stringi r-cr
 RUN mkdir /map
 
 COPY plinktomap.pl /usr/local/bin/
+COPY linkage2post.pl /usr/local/bin/
 COPY genetic-mapper/script/genetic_mapper.pl /usr/local/bin/
 COPY test/* /map/
 

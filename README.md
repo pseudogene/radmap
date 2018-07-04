@@ -117,7 +117,7 @@ See the official documentation at [https://sourceforge.net/p/lep-map3/wiki/Home/
 
 ```
 plinktomap.pl --ped plink.ped --meta meta_parents.txt --lepmap3 >input.linkage
-awk -f /usr/local/bin/linkage2post.awk input.linkage | java -cp /usr/local/bin/lepmap2 Transpose > input.post
+linkage2post.pl -in input.linkage | java -cp /usr/local/bin/lepmap2 Transpose > input.post
 ```
 
 #### Run LepMap3

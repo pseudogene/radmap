@@ -240,6 +240,7 @@ if (scalar keys %parents_table > 0 && ($lepmap || $lepmap3) && defined $ped && -
             }
             else
             {
+                print $data[0], "\t", $data[1], "\t", $parents_table{$data[1]}[1], "\t", $parents_table{$data[1]}[2], "\t", ($parents_table{$data[1]}[3] =~ /^F/ ? q{2} : ($parents_table{$data[1]}[3] =~ /^M/ ? q{1} : q{0})), "\t0";
                 for my $i (6 .. (scalar @data) - 1) { print "\t", (defined $data[$i] && exists $table{$data[$i]} ? $table{$data[$i]} : q{0}); }
             }
             print "\n";
