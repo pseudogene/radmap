@@ -2,6 +2,8 @@
 
 # RAD-tag to Genetic Map
 
+[![Build Status](https://travis-ci.org/pseudogene/radmap.svg?branch=master)](https://travis-ci.org/pseudogene/radmap)
+
 We foster the openness, integrity, and reproducibility of scientific research.
 
 Scripts and tools used to develop a pipeline to analyse RAD-tags and generate the Genetic Map with GWAS.

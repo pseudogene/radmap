@@ -26,11 +26,6 @@ USER root
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y dirmngr --no-install-recommends
 
-#RUN echo "deb http://cran.rstudio.com/bin/linux/ubuntu artful/" >> /etc/apt/sources.list && \
-#    gpg --keyserver keyserver.ubuntu.com --recv-key E084DAB9 && \
-#    gpg -a --export E084DAB9 | apt-key add - && \
-#    apt-get update
-
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y wget unzip ca-certificates-java default-jre-headless librsvg2-bin --no-install-recommends && \
     wget -q --no-check-certificate https://sourceforge.net/projects/lepmap2/files/binary.zip -O /root/lepmap2.zip && \
     wget -q --no-check-certificate https://sourceforge.net/projects/lep-map3/files/binary.zip -O /root/lepmap3.zip && \
@@ -53,4 +48,3 @@ COPY genetic-mapper/script/genetic_mapper.pl /usr/local/bin/
 COPY test/* /map/
 
 WORKDIR /map
-

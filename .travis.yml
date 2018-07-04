@@ -1,0 +1,13 @@
+sudo: required
+language: python
+python:
+- 3.5
+services:
+- docker
+install:
+- docker build --rm=true -t radmap .
+script:
+- docker run -it radmap /map/test.sh
+notifications:
+  slack:
+    secure: SKpbnu9N3rtSi77ML7jctwkpZriR4KGsSvn3dhUsNdhLQrne4lP3WXcxsu7yvswLAgCDX99niMr1wwKsDtw/OHjdgXVCaheINmQBjI9DDZhLTqI3af9QmlksZs13bEoX2kXisMtZqWkMQbzhju3LO98rxlKaZR5iydp9TNp7WMb8YWxCLMYJ+qP3x1ZgnTXDfeAeogmj8FokRJzRHRPeVeFjj4o+c2EEF7sM3bQ4MMLRozsoPuP+7EWYVAtnPd03BpRAx4paAsL5zph/9YEuL3gNXkeXbUEa9U67AuDvHcOq25wo+vMHTdUM1/HRRii+LY3l0lstTe3muPbRCoA3f9jhUkk7M3pgdl794YRHjpNaiMJcQB4YxEIpH5qAcxtQYcZnZvWePoMMpUZB5iMyTKXBdyevidsw/+6Vu+Y3uoqtsgYaSCfnjx2dwIrq/gPVTURNNwrOSZOF8oCD7OG44rbpp7T3Ipj3jt7uZOJmhDF+b8jvCtgLgxObFOk5oSLENtihVl350WAEeuJ8vBSHcxNh2dBN/Yijckt+MotpVxIvV7wbzxoIbhXz3QQRBU7uqRhHqCRF3XEhvIeiDHxKqALYr9pBtOwWXht7t9cTUUP7w7yNmtoB/E1I/WKjanZs3QzjieE68WCgXXL2SWljhbToC+0aRjzJcqJkLc8bkDc=
