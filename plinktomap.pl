@@ -1,6 +1,6 @@
 #!/usr/bin/perl
-# $Revision: 0.10 $
-# $Date: 2018/07/03 $
+# $Revision: 0.12 $
+# $Date: 2018/11/05 $
 # $Id: plinktomap.pl $
 # $Author: Michael Bekaert $
 #
@@ -60,7 +60,7 @@ RAD-tags to Genetic Map (radmap)
     --markers     OPTIONAL
     --fasta       OPTIONAL
     --pos         OPTIONAL
-    --lod         OPTIONAL 
+    --lod         OPTIONAL
 
     STDOUT > Genetic Map
 
@@ -118,7 +118,7 @@ RAD-tags to Genetic Map (radmap)
 =head1 DESCRIPTION
 
 Perl script for the analyse RAD-tags and generate the Genetic Map with GWAS. The script
-handles the multiple file conversions. PLINK _classic_ file L<PED|http://pngu.mgh.harvard.edu/~purcell/plink/data.shtml#ped> 
+handles the multiple file conversions. PLINK _classic_ file L<PED|http://pngu.mgh.harvard.edu/~purcell/plink/data.shtml#ped>
 and L<MAP|http://pngu.mgh.harvard.edu/~purcell/plink/data.shtml#map> are required as well as a pedigree file.
 
 
@@ -159,10 +159,10 @@ use warnings;
 use Getopt::Long;
 
 #----------------------------------------------------------
-our ($VERSION) = 0.10;
+our ($VERSION) = 0.11;
 
 #----------------------------------------------------------
-my ($female, $lepmap, $lepmap3, $snpassoc, $edit, $loc, $lod, $plink, $ped, $parentage, $map, $genmap, $genetic, $markers, $fasta) = (0, 0, 0, 0, 0, 0, 0);
+my ($threads, $female, $remap, $lepmap, $lepmap3, $snpassoc, $edit, $loc, $lod, $plink, $ped, $parentage, $map, $genmap, $genetic, $markers, $fasta) = (10, 0, 0, 0, 0, 0, 0, 0, 0);
 my @extra;
 GetOptions(
            'plink:s'   => \$plink,
@@ -180,7 +180,8 @@ GetOptions(
            'edit!'     => \$edit,
            'snpassoc!' => \$snpassoc,
            'markers:s' => \$markers,
-           'fasta:s'   => \$fasta
+           'fasta:s'   => \$fasta,
+           'remap!'    => \$remap
           );
 my %parents_table;
 my $count_meta = 0;
@@ -212,12 +213,10 @@ if (scalar keys %parents_table > 0 && ($lepmap || $lepmap3) && defined $ped && -
     # PEB
     # # Stacks v1.42;  PLINK v1.07; October 06, 2016
     # C7	F1_dam_C7	0	0	0	0	G	T	A	A	G	T	A	G	G	...
-
     # LINKAGE
     # #java Filtering  data=C07_LSalAtl2sD140.linkage.txt dataTolerance=0.001
     # C7	P0_sir_C7	0	0	1	0	1 1	0 0	1 2	1 2	1 2	1 2	...
     # C7	F1_dam_C7	P0_sir_C7	P0_dam_C7	2 	0	1 2	0 0	2 2	1 2	1 1	1 ...
-
     while (<$in>)
     {
         next if (m/^#/);
@@ -257,7 +256,6 @@ elsif (scalar keys %parents_table > 0 && $snpassoc && defined $ped && -r $ped &&
     # PEB
     # # Stacks v1.42;  PLINK v1.07; October 06, 2016
     # C7	F1_dam_C7	0	0	0	0	G	T	A	A	G	T	A	G	G	...
-
     # plink MAP
     # # Stacks v1.42;  PLINK v1.07; October 06, 2016
     # LSalAtl2s1	19757_13	0	4466
@@ -266,7 +264,6 @@ elsif (scalar keys %parents_table > 0 && $snpassoc && defined $ped && -r $ped &&
     # LSalAtl2s1	19492_81	0	106518
     # LSalAtl2s1	19498_31	0	118987
     # LSalAtl2s1	19749_27	0	381049
-
     # LEPMAP MAP
     # #java SeparateChromosomes  data=C07_LSalAtl2sD140_f.linkage.txt lodLimit=6.5 sizeLimit=2
     # 0
@@ -275,12 +272,10 @@ elsif (scalar keys %parents_table > 0 && $snpassoc && defined $ped && -r $ped &&
     # 6
     # 0
     # 0
-
     # SNPAssoc
     # id	Sex	Surviving	33	40	60	120	136	157	180
     # F2_C7_073	Female	2	A/A	-	A/B	A/B	A/B	A/B
     # F2_C7_074	Female	2	A/A	-	B/B	A/B	A/B	A/A
-
     while (<$in>)
     {
         next if (m/^#/);
@@ -301,7 +296,6 @@ elsif (scalar keys %parents_table > 0 && $snpassoc && defined $ped && -r $ped &&
         # 2789	0.270	0.270	( 0 )	11
         # 2749	2.568	2.568	( 0.2398 )	10
         # 4119	3.455	3.455	( 0 )	-1
-    
         print {*STDERR} "Marker\tLG\tPosition\n";
         while (<$in>)
         {
@@ -333,9 +327,8 @@ elsif (scalar keys %parents_table > 0 && $snpassoc && defined $ped && -r $ped &&
             $i++;
         }
         close $in;
-    } else {
-      undef @mask_marker;
     }
+    else { undef @mask_marker; }
     if (scalar @list_marker > 0 && open($in, q{<}, $ped))
     {
         print "id\tsex";
@@ -362,6 +355,162 @@ elsif (scalar keys %parents_table > 0 && $snpassoc && defined $ped && -r $ped &&
         close $in;
     }
 }
+elsif ($remap && scalar @extra > 0 && defined $genetic && -r $genetic && open($in, q{<}, $genetic))
+{
+    my (%list_markers, %list2_markers, %list_sequences);
+    open(my $seqfile, q{>}, '/tmp/blast_' . $genetic . '.fasta');
+    while (<$in>)
+    {
+        next if (m/^(#|Marker)/);
+        chomp;
+        my @data = split m/\t/;
+        if (scalar @data >= 4 && defined $data[0] && defined $data[1] && defined $data[2] && defined $data[-1])
+        {
+            @{$list_markers{$data[0]}} = @data;
+            print {$seqfile} '>', $data[0], "\n", $data[-1], "\n";
+        }
+    }
+    close $seqfile;
+    close $in;
+    foreach my $infile (@extra)
+    {
+        if (defined $infile && -r $infile && open(my $in2, q{<}, $infile))
+        {
+            #Extra
+            # "","comments","codominant"
+            # "X67793_33",NA,0.02511912
+            while (<$in2>)
+            {
+                chomp;
+                my @data = split m/,/;
+                if (scalar @data >= 3 && defined $data[0] && defined $data[2] && $data[2] ne 'NA')
+                {
+                    if ($data[0] =~ m/X([\d\w\_\.]+)/) { $list2_markers{$1} = 1; }
+                    elsif ($data[0] =~ m/(dDocent.*)\.(\d+)/) { $list2_markers{$1 . q{:} . $2} = 1; }
+                }
+            }
+            close $in2;
+        }
+    }
+    my %tmp2_list;
+    for my $item (keys %list2_markers)
+    {
+        if    ($item =~ m/^(\d+)_\d+/)       { $tmp2_list{$1} = $item; $tmp2_list{$item} = $1; }
+        elsif ($item =~ m/^(dDocent.*):\d+/) { $tmp2_list{$1} = $item; $tmp2_list{$item} = $1; }
+        else                                 { $tmp2_list{$item} = $item; }
+    }
+    open(my $queryfile, q{>}, '/tmp/query_' . $genetic . '.fasta');
+    if (defined $markers && -r $markers)
+    {
+        my %unique;
+        if (defined $ped && -r $ped && defined $plink && -r $plink && open($in, q{<}, $plink))
+        {
+            my @list_full;
+            while (<$in>)
+            {
+                next if (m/^#/);
+                chomp;
+                my @data = split m/\t/;
+                if (scalar @data >= 2 && defined $data[0] && defined $data[1]) { push @list_full, $data[1]; }
+            }
+            close $in;
+        }
+        if (open($in, q{<}, $markers))
+        {
+            while (<$in>)
+            {
+                next if (m/^#/);
+                chomp;
+                my @data = split m/\t/;
+                if (scalar @data > 9 && defined $data[2] && defined $data[9] && exists $tmp2_list{$data[2]}) { print {$queryfile} '>', $tmp2_list{$data[2]}, "\n", $data[9], "\n"; }
+            }
+            close $in;
+        }
+    }
+    elsif (defined $fasta && -r $fasta)
+    {
+        if (open($in, q{<}, $fasta))
+        {
+            my ($seq, $header) = (q{});
+            while (<$in>)
+            {
+                next if /^\s*$/;
+                chomp;
+                if (/^>/)
+                {    # fasta header line
+                    my $h = $_;
+                    $h =~ s/^>//;
+                    if (defined $header && length $seq > 10)
+                    {
+                        print {$queryfile} '>', $tmp2_list{$header}, "\n", $seq, "\n" if (exists $tmp2_list{$header});
+                        $header = $h;
+                        $seq    = q{};
+                    }
+                    else { $header = $h }
+                }
+                else
+                {
+                    s/\W+//;
+                    $seq .= $_;
+                }
+            }
+            if (defined $header && length $seq > 10) { print {$queryfile} '>', $tmp2_list{$header}, "\n", $seq, "\n" if (exists $tmp2_list{$header}); }
+            close $in;
+        }
+    }
+    close $queryfile;
+    if (system('makeblastdb -dbtype nucl -in "' . '/tmp/blast_' . $genetic . '.fasta' . '" -parse_seqids -hash_index -out "' . '/tmp/blast_' . $genetic . '_db" >/dev/null') != 0)
+    {
+        print {*STDERR} "ERROR: makeblastdb failed to execute: $!\n";
+        system('rm -f /tmp/query_' . $genetic . '.* /tmp/blast_' . $genetic . '*');
+        exit 10;
+    }
+    if (
+        system(
+                   'blastn'
+                 . ' -query '
+                 . '/tmp/query_'
+                 . $genetic
+                 . '.fasta'
+                 . ' -db "'
+                 . '/tmp/blast_'
+                 . $genetic
+                 . '_db" -task blastn -dust yes -outfmt "6 std qlen slen" -max_target_seqs 1'
+                 . (int($threads) > 1 ? ' -num_threads ' . int($threads) : q{})
+                 . ' -out /tmp/query_'
+                 . $genetic
+                 . '.blast'
+        ) != 0
+       )
+    {
+        print {*STDERR} "ERROR: blastp failed to execute: $!\n";
+        system('rm -f /tmp/query_' . $genetic . '.* /tmp/blast_' . $genetic . '*');
+        exit 10;
+    }
+    my %remap;
+    if (open($in, q{<}, '/tmp/query_' . $genetic . '.blast'))
+    {
+        while (<$in>)
+        {
+            next if (m/^#/);
+            chomp;
+            my @data = split m/\t/;
+            if (scalar @data >= 14 && defined $data[0] && defined $data[1] && defined $data[2] && defined $data[3] && defined $data[12] && defined $data[13])
+            {
+                # NEED CLEAN UP
+                if (int($data[2]) >= 90 && (int($data[3]) == int($data[12]) || int($data[3]) == int($data[13]) || int($data[3]) >= 99))
+                {
+                    $remap{$data[0]} = $list_markers{$data[1]};
+                    print {*STDERR} $data[0], "\t", $list_markers{$data[1]}[0], "\n";
+                }
+            }
+        }
+        close $in;
+    }
+    system('rm -f /tmp/query_' . $genetic . '.* /tmp/blast_' . $genetic . '*');
+    print {*STDOUT} "Marker\tLG\tPosition\n";
+    for my $item (keys %list2_markers) { print {*STDOUT} $item, "\t", (exists $remap{$item} ? $remap{$item}[1] . "\t" . $remap{$item}[2] : "Unk\t0"), "\n"; }
+}
 elsif (scalar @extra > 0 && defined $genetic && -r $genetic && open($in, q{<}, $genetic))
 {
     my (%list_markers, %list_sequences);
@@ -374,7 +523,6 @@ elsif (scalar @extra > 0 && defined $genetic && -r $genetic && open($in, q{<}, $
     # 47815_44	1	4.114
     # 11332_62	1	6.270
     # 47683_83	1	6.537
-
     while (<$in>)
     {
         next if (m/^(#|Marker)/);
@@ -457,7 +605,6 @@ elsif (scalar @extra > 0 && defined $genetic && -r $genetic && open($in, q{<}, $
             # ## cstacks version 1.42; catalog generated on 2016-09-22 22:24:20
             # 0	2	1	LSalAtl2s1000	1022	-	consensus	0	263_8...	CATGTTTATGTATCATTTGTACTATTATAAAACTGAAATATATATTTTTATGTTTTTGTAAAAATGTTTAATTTATTATCTATAACCATTCCTATTCGCC	0	0	0	0
             # 0	2	2	LSalAtl2s1000	132767	+	consensus	0	263_13...	CATGGTAAATTCGTGGTTTACACTATCATTGTCAGACAAAATTGTTGTGAGTACTATCATCTTGAAGCAATGTCGATGCAAGCAATAAGATTGTAAGTAA	0	0	0	0
-
             while (<$in>)
             {
                 next if (m/^#/);
@@ -482,7 +629,6 @@ elsif (scalar @extra > 0 && defined $genetic && -r $genetic && open($in, q{<}, $
         {
             # >dDocent_Contig_12
             # TGCAGAAAACACTCTCTCCCCAGACGGGTTTTGATAGAGTAGAACTCCGTCTCGATAGAAAGCAAAGTTGTTATATATATAGTAATAACTAGAGGGATTANNNNNNNNNNCATGTTTAATTTTAAAACATTTTCACACAACCTTAGATGGCTTTTATATTTAATATTCTATTCGAAATTTAAAAGATTTTGTAGCGGTGGATATTTTTGT
-
             my ($seq, $header) = (q{});
             while (<$in>)
             {
@@ -533,7 +679,6 @@ elsif ($edit && defined $plink && -r $plink && defined $genetic && -r $genetic &
     # LSalAtl2s1	19492_81	0	106518
     # LSalAtl2s1	19498_31	0	118987
     # LSalAtl2s1	19749_27	0	381049
-
     if (open $in, q{<}, $plink)
     {
         print {*STDOUT} "# plinktomap edit mode\n";

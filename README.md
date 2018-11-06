@@ -147,7 +147,7 @@ cat lod.txt
 
 
 ## R/SNPassoc
-See the official documentation at https://CRAN.R-project.org/package=SNPassoc
+See the official documentation at [https://CRAN.R-project.org/package=SNPassoc](https://CRAN.R-project.org/package=SNPassoc)
 
 ### Data preparation
 
