@@ -1,6 +1,6 @@
 #!/usr/bin/perl
-# $Revision: 0.12 $
-# $Date: 2018/11/05 $
+# $Revision: 0.11 $
+# $Date: 2018/07/05 $
 # $Id: plinktomap.pl $
 # $Author: Michael Bekaert $
 #
@@ -60,7 +60,7 @@ RAD-tags to Genetic Map (radmap)
     --markers     OPTIONAL
     --fasta       OPTIONAL
     --pos         OPTIONAL
-    --lod         OPTIONAL
+    --lod         OPTIONAL 
 
     STDOUT > Genetic Map
 
@@ -118,7 +118,7 @@ RAD-tags to Genetic Map (radmap)
 =head1 DESCRIPTION
 
 Perl script for the analyse RAD-tags and generate the Genetic Map with GWAS. The script
-handles the multiple file conversions. PLINK _classic_ file L<PED|http://pngu.mgh.harvard.edu/~purcell/plink/data.shtml#ped>
+handles the multiple file conversions. PLINK _classic_ file L<PED|http://pngu.mgh.harvard.edu/~purcell/plink/data.shtml#ped> 
 and L<MAP|http://pngu.mgh.harvard.edu/~purcell/plink/data.shtml#map> are required as well as a pedigree file.
 
 
@@ -159,7 +159,7 @@ use warnings;
 use Getopt::Long;
 
 #----------------------------------------------------------
-our ($VERSION) = 0.11;
+our ($VERSION) = 0.12;
 
 #----------------------------------------------------------
 my ($threads, $female, $remap, $lepmap, $lepmap3, $snpassoc, $edit, $loc, $lod, $plink, $ped, $parentage, $map, $genmap, $genetic, $markers, $fasta) = (10, 0, 0, 0, 0, 0, 0, 0, 0);
@@ -657,7 +657,7 @@ elsif (scalar @extra > 0 && defined $genetic && -r $genetic && open($in, q{<}, $
         }
     }
     print {*STDOUT} "Marker\tLG\tPosition\t", join("\t", @extra), (defined $markers && -r $markers ? "\t" . 'Details' : (defined $fasta && -r $fasta ? "\t" . 'Marker' : q{})), "\n";
-    for my $item (keys %list_markers) { print {*STDOUT} join("\t", @{$list_markers{$item}}), (exists $tmp_list{$item} && exists $list_sequences{$tmp_list{$item}} ? "\t" . $list_sequences{$tmp_list{$item}} : q{}), "\n"; }
+    for my $item (keys %list_markers) { print {*STDOUT} join("\t", @{$list_markers{$item}}), (exists $list_sequences{$item} ? "\t" . $list_sequences{$item} : (exists $tmp_list{$item} && exists $list_sequences{$tmp_list{$item}} ? "\t" . $list_sequences{$tmp_list{$item}} : q{})), "\n"; }
 }
 elsif ($edit && defined $plink && -r $plink && defined $genetic && -r $genetic && open($in, q{<}, $genetic))
 {
