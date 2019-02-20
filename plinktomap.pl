@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-# $Revision: 0.11 $
+# $Revision: 0.12 $
 # $Date: 2018/07/05 $
 # $Id: plinktomap.pl $
 # $Author: Michael Bekaert $
@@ -60,7 +60,7 @@ RAD-tags to Genetic Map (radmap)
     --markers     OPTIONAL
     --fasta       OPTIONAL
     --pos         OPTIONAL
-    --lod         OPTIONAL 
+    --lod         OPTIONAL
 
     STDOUT > Genetic Map
 
@@ -118,7 +118,7 @@ RAD-tags to Genetic Map (radmap)
 =head1 DESCRIPTION
 
 Perl script for the analyse RAD-tags and generate the Genetic Map with GWAS. The script
-handles the multiple file conversions. PLINK _classic_ file L<PED|http://pngu.mgh.harvard.edu/~purcell/plink/data.shtml#ped> 
+handles the multiple file conversions. PLINK _classic_ file L<PED|http://pngu.mgh.harvard.edu/~purcell/plink/data.shtml#ped>
 and L<MAP|http://pngu.mgh.harvard.edu/~purcell/plink/data.shtml#map> are required as well as a pedigree file.
 
 
@@ -162,7 +162,7 @@ use Getopt::Long;
 our ($VERSION) = 0.12;
 
 #----------------------------------------------------------
-my ($threads, $female, $remap, $lepmap, $lepmap3, $snpassoc, $edit, $loc, $lod, $plink, $ped, $parentage, $map, $genmap, $genetic, $markers, $fasta) = (10, 0, 0, 0, 0, 0, 0, 0, 0);
+my ($threads, $female, $remap, $lepmap, $lepmap3, $structure, $snpassoc, $edit, $loc, $lod, $plink, $ped, $parentage, $map, $genmap, $genetic, $markers, $fasta) = (10, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 my @extra;
 GetOptions(
            'plink:s'   => \$plink,
@@ -178,6 +178,7 @@ GetOptions(
            'pos!'      => \$loc,
            'lod!'      => \$lod,
            'edit!'     => \$edit,
+           'structure!'=> \$structure,
            'snpassoc!' => \$snpassoc,
            'markers:s' => \$markers,
            'fasta:s'   => \$fasta,
@@ -329,27 +330,34 @@ elsif (scalar keys %parents_table > 0 && $snpassoc && defined $ped && -r $ped &&
         close $in;
     }
     else { undef @mask_marker; }
+
     if (scalar @list_marker > 0 && open($in, q{<}, $ped))
     {
-        print "id\tsex";
-        for my $j (1 .. $count_meta) { print "\tphenotype_$j", }
-        for my $j (0 .. (scalar @list_marker) - 1) { print "\t", $list_marker[$j] if (!defined $mask_marker[$j]); }
-        print "\n";
-        while (<$in>)
+        if ($structure)
         {
-            next if (m/^#/);
-            chomp;
-            my @data = split m/\t/;
-            if (scalar @data > 8 && defined $data[0] && defined $data[1] && exists $parents_table{$data[1]} && $parents_table{$data[1]}[3] =~ /^(M|F)/)
+            ##TODO
+
+        } else {
+            print "id\tsex";
+            for my $j (1 .. $count_meta) { print "\tphenotype_$j", }
+            for my $j (0 .. (scalar @list_marker) - 1) { print "\t", $list_marker[$j] if (!defined $mask_marker[$j]); }
+            print "\n";
+            while (<$in>)
             {
-                print $data[1], "\t", ($parents_table{$data[1]}[3] =~ /^F/ ? 'Female' : 'Male');
-                for my $j (1 .. $count_meta) { print "\t", (exists $parents_table{$data[1]}[3 + $j] ? $parents_table{$data[1]}[3 + $j] : q{}) }
-                my $i = 6;
-                for my $j (0 .. (scalar @list_marker) - 1) {
-                    print "\t", (defined $data[6 + $j * 2] && $data[6 + $j * 2] ne q{0} && defined $data[6 + $j * 2 + 1] && $data[6 + $j * 2 + 1] ne q{0} ? $data[6 + $j * 2] . q{/} . $data[6 + $j * 2 + 1] : q{-})
-                      if (!defined $mask_marker[$j]);
+                next if (m/^#/);
+                chomp;
+                my @data = split m/\t/;
+                if (scalar @data > 8 && defined $data[0] && defined $data[1] && exists $parents_table{$data[1]} && $parents_table{$data[1]}[3] =~ /^(M|F)/)
+                {
+                    print $data[1], "\t", ($parents_table{$data[1]}[3] =~ /^F/ ? 'Female' : 'Male');
+                    for my $j (1 .. $count_meta) { print "\t", (exists $parents_table{$data[1]}[3 + $j] ? $parents_table{$data[1]}[3 + $j] : q{}) }
+                    my $i = 6;
+                    for my $j (0 .. (scalar @list_marker) - 1) {
+                        print "\t", (defined $data[6 + $j * 2] && $data[6 + $j * 2] ne q{0} && defined $data[6 + $j * 2 + 1] && $data[6 + $j * 2 + 1] ne q{0} ? $data[6 + $j * 2] . q{/} . $data[6 + $j * 2 + 1] : q{-})
+                          if (!defined $mask_marker[$j]);
+                    }
+                    print "\n";
                 }
-                print "\n";
             }
         }
         close $in;
