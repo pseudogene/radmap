@@ -610,22 +610,34 @@ elsif (scalar @extra > 0 && defined $genetic && -r $genetic && open($in, q{<}, $
         }
         if (open($in, q{<}, $markers))
         {
-            # ## cstacks version 1.42; catalog generated on 2016-09-22 22:24:20
+            # ## cstacks version 1.48; catalog generated on 2018-09-22 22:24:20
             # 0	2	1	LSalAtl2s1000	1022	-	consensus	0	263_8...	CATGTTTATGTATCATTTGTACTATTATAAAACTGAAATATATATTTTTATGTTTTTGTAAAAATGTTTAATTTATTATCTATAACCATTCCTATTCGCC	0	0	0	0
             # 0	2	2	LSalAtl2s1000	132767	+	consensus	0	263_13...	CATGGTAAATTCGTGGTTTACACTATCATTGTCAGACAAAATTGTTGTGAGTACTATCATCTTGAAGCAATGTCGATGCAAGCAATAAGATTGTAAGTAA	0	0	0	0
+
+            # # cstacks version 2.3e; catalog generated on 2019-05-20 16:12:34
+            # 0	1	consensus	0	148_1...	CATGCATGTTACTTAAGGGTAGTTTCAGAGGAGCAAGTGGCACATCCCTCCCTCTGCATTTTCAAATGACTGTTGTTGATTTTATTAAAACAAATTCTCCAAATTAAAGTGTAAAATCTTGGTAACCTTTGGAAGTAAAGT	0	0	0
+            my $seqpos = 5;
+            my $seqid = 1;
+            my $line = <$in>;
+            if ($line =~ m/version 1/) {
+                $seqpos = 9;
+                $seqid = 2;
+            }
             while (<$in>)
             {
                 next if (m/^#/);
                 chomp;
                 my @data = split m/\t/;
-                if (scalar @data > 9 && defined $data[2] && defined $data[9] && exists $tmp_list{$data[2]})
+                if (scalar @data > $seqpos && defined $data[$seqid] && defined $data[$seqpos] && exists $tmp_list{$data[$seqid]})
                 {
                     my $snploc;
-                    if    ($tmp_list{$data[2]} =~ m/\_(\d+)/)          { $snploc = $1; }
-                    elsif ($tmp_list{$data[2]} =~ m/dDocent.*\.(\d+)/) { $snploc = $1; }
-                    $unique{$tmp_list{$data[2]}} =~ s/(.)(?=.*?\1)//g;
-                    my $seq = (exists $unique{$tmp_list{$data[2]}} && defined $snploc ? substr($data[9], 0, $snploc) . q{[} . $unique{$tmp_list{$data[2]}} . q{]} . substr($data[9], $snploc + 1) : $data[9]);
-                    $list_sequences{$tmp_list{$data[2]}} = (int($loc) > 0 && defined $data[3] && defined $data[4] ? $data[3] . "\t" . $data[4] . "\t" . $seq : $seq);
+                    if    ($tmp_list{$data[$seqid]} =~ m/\_(\d+)/)          { $snploc = $1; }
+                    elsif ($tmp_list{$data[$seqid]} =~ m/dDocent.*\.(\d+)/) { $snploc = $1; }
+                    # $unique{$tmp_list{$data[$seqid]}} =~ s/(.)(?=.*?\1)//g;
+                    my $seq = (exists $unique{$tmp_list{$data[$seqid]}} && defined $snploc ? substr($data[$seqpos], 0, $snploc) . q{[} . $unique{$tmp_list{$data[$seqid]}} . q{]} . substr($data[$seqpos], $snploc + 1) : $data[$seqpos]);
+
+                    # to be check for v2+
+                    $list_sequences{$tmp_list{$data[$seqid]}} = (int($loc) > 0 && defined $data[3] && defined $data[4] ? $data[3] . "\t" . $data[4] . "\t" . $seq : $seq);
                 }
             }
             close $in;
