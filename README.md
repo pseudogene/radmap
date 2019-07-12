@@ -20,7 +20,7 @@ To look at our scripts and raw results, **browse** through this repository. If y
 
 All required files and tools run in a self-contained [docker](https://www.docker.com/) image.
 
-#### bClone the repository
+#### Clone the repository
 
 ```
 git clone --recursive https://github.com/pseudogene/radmap.git
