@@ -1,11 +1,11 @@
 #!/usr/bin/perl
-# $Revision: 0.12 $
-# $Date: 2018/07/05 $
+# $Revision: 0.16 $
+# $Date: 2020/03/04 $
 # $Id: plinktomap.pl $
 # $Author: Michael Bekaert $
 #
 # RAD-tags to Genetic Map (radmap)
-# Copyright (C) 2016-2018 Bekaert M <michael.bekaert@stir.ac.uk>
+# Copyright (C) 2016-2019 Bekaert M <michael.bekaert@stir.ac.uk>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -64,6 +64,14 @@ RAD-tags to Genetic Map (radmap)
 
     STDOUT > Genetic Map
 
+  # Export marker and genotype for publication (Table S)
+    --plink       MANDATORY
+    --ped         MANDATORY
+    --markers     OPTIONAL
+    --fasta       OPTIONAL
+    --pos         OPTIONAL
+    --table
+
   # Manual editing
     --ped         MANDATORY
     --genetic     MANDATORY
@@ -111,6 +119,8 @@ RAD-tags to Genetic Map (radmap)
          Enable R/SNPAssoc pre-processing.
     --lepmap
          Enable LepMap pre-processing.
+    --table
+         Enable export for publication for markers and genotypes.
     --edit
          Enable Manual editing mode.
 
@@ -137,7 +147,7 @@ The latest version of genetic_mapper.pl is available at
 
 =head1 LICENSE
 
-Copyright 2016-2018 - Michael Bekaert
+Copyright 2016-2020 - Michael Bekaert
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -159,10 +169,10 @@ use warnings;
 use Getopt::Long;
 
 #----------------------------------------------------------
-our ($VERSION) = 0.12;
+our ($VERSION) = 0.16;
 
 #----------------------------------------------------------
-my ($threads, $female, $remap, $lepmap, $lepmap3, $structure, $snpassoc, $edit, $loc, $lod, $plink, $ped, $parentage, $map, $genmap, $genetic, $markers, $fasta) = (10, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+my ($threads, $female, $tableS, $remap, $lepmap, $lepmap3, $ade, $snpassoc, $edit, $loc, $lod, $plink, $ped, $parentage, $map, $genmap, $genetic, $markers, $fasta) = (10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 my @extra;
 GetOptions(
            'plink:s'   => \$plink,
@@ -178,8 +188,9 @@ GetOptions(
            'pos!'      => \$loc,
            'lod!'      => \$lod,
            'edit!'     => \$edit,
-           'structure!'=> \$structure,
+           'ade!'      => \$ade,
            'snpassoc!' => \$snpassoc,
+           'table!'    => \$tableS,
            'markers:s' => \$markers,
            'fasta:s'   => \$fasta,
            'remap!'    => \$remap
@@ -230,7 +241,7 @@ if (scalar keys %parents_table > 0 && ($lepmap || $lepmap3) && defined $ped && -
                 if (!exists $table{$data[1]})                    { $table{$data[1]}                    = ++$last; }
                 if (!exists $table{$parents_table{$data[1]}[1]}) { $table{$parents_table{$data[1]}[1]} = ++$last; }
                 if (!exists $table{$parents_table{$data[1]}[2]}) { $table{$parents_table{$data[1]}[2]} = ++$last; }
-                print $data[0], "\t", $table{$data[1]}, "\t", $table{$parents_table{$data[1]}[1]}, "\t", $table{$parents_table{$data[1]}[2]}, "\t", ($parents_table{$data[1]}[3] =~ /^F/ ? q{2} : ($parents_table{$data[1]}[3] =~ /^M/ ? q{1} : q{0})),
+                print $data[0], "\t", $table{$data[1]}, "\t", $table{$parents_table{$data[1]}[1]}, "\t", $table{$parents_table{$data[1]}[2]}, "\t", ($parents_table{$data[1]}[3] =~ /^F/i ? q{2} : ($parents_table{$data[1]}[3] =~ /^M/i ? q{1} : q{0})),
                   "\t0";
                 for (my $i = 6 ; $i < scalar @data ; $i = $i + 2)
                 {
@@ -240,7 +251,7 @@ if (scalar keys %parents_table > 0 && ($lepmap || $lepmap3) && defined $ped && -
             }
             else
             {
-                print $data[0], "\t", $data[1], "\t", $parents_table{$data[1]}[1], "\t", $parents_table{$data[1]}[2], "\t", ($parents_table{$data[1]}[3] =~ /^F/ ? q{2} : ($parents_table{$data[1]}[3] =~ /^M/ ? q{1} : q{0})), "\t0";
+                print $data[0], "\t", $data[1], "\t", $parents_table{$data[1]}[1], "\t", $parents_table{$data[1]}[2], "\t", ($parents_table{$data[1]}[3] =~ /^F/i ? q{2} : ($parents_table{$data[1]}[3] =~ /^M/i ? q{1} : q{0})), "\t0";
                 for my $i (6 .. (scalar @data) - 1) { print "\t", (defined $data[$i] && exists $table{$data[$i]} ? $table{$data[$i]} : q{0}); }
             }
             print "\n";
@@ -250,7 +261,7 @@ if (scalar keys %parents_table > 0 && ($lepmap || $lepmap3) && defined $ped && -
 }
 
 #To SNPAssoc
-elsif (scalar keys %parents_table > 0 && $snpassoc && defined $ped && -r $ped && defined $plink && -r $plink && open($in, q{<}, $plink))
+elsif (scalar keys %parents_table > 0 && ($snpassoc || $ade) && defined $ped && -r $ped && defined $plink && -r $plink && open($in, q{<}, $plink))
 {
     my (@list_marker, @mask_marker);
 
@@ -335,8 +346,29 @@ elsif (scalar keys %parents_table > 0 && $snpassoc && defined $ped && -r $ped &&
     {
         if ($structure)
         {
-            ##TODO
-
+        	my @group;
+        	my %atcg = (A => 1, C => 2, G => 3, T => 4, N => 0, 0 => 0);
+            print "Samples";
+            for my $j (0 .. (scalar @list_marker) - 1) { print "\t", $list_marker[$j] if (!defined $mask_marker[$j]); }
+            print "\n";
+            while (<$in>)
+            {
+                next if (m/^#/);
+                chomp;
+                my @data = split m/\t/;
+                if (scalar @data > 8 && defined $data[0] && defined $data[1] && exists $parents_table{$data[1]} && exists $parents_table{$data[1]}[4])
+                {
+                    print $data[1];
+                    push @group, $parents_table{$data[1]}[4];
+                    my $i = 6;
+                    for my $j (0 .. (scalar @list_marker) - 1) {
+                        print "\t", (defined $data[$i + $j * 2] && $data[$i + $j * 2] ne q{0} && defined $data[$i + $j * 2 + 1] && $data[$i + $j * 2 + 1] ne q{0} ? $atcg{$data[$i + $j * 2]} . $atcg{$data[$i + $j * 2 + 1]} : "  ")
+                          if (!defined $mask_marker[$j]);
+                    }
+                    print "\n";
+                }
+            }
+            print {*STDERR} 'pop <- c(\'', join("','",@group),"');\n";
         } else {
             print "id\tsex";
             for my $j (1 .. $count_meta) { print "\tphenotype_$j", }
@@ -347,13 +379,13 @@ elsif (scalar keys %parents_table > 0 && $snpassoc && defined $ped && -r $ped &&
                 next if (m/^#/);
                 chomp;
                 my @data = split m/\t/;
-                if (scalar @data > 8 && defined $data[0] && defined $data[1] && exists $parents_table{$data[1]} && $parents_table{$data[1]}[3] =~ /^(M|F)/)
+                if (scalar @data > 8 && defined $data[0] && defined $data[1] && exists $parents_table{$data[1]} && $parents_table{$data[1]}[3] =~ /^(M|F)/i)
                 {
-                    print $data[1], "\t", ($parents_table{$data[1]}[3] =~ /^F/ ? 'Female' : 'Male');
+                    print $data[1], "\t", ($parents_table{$data[1]}[3] =~ /^F/i ? 'Female' : 'Male');
                     for my $j (1 .. $count_meta) { print "\t", (exists $parents_table{$data[1]}[3 + $j] ? $parents_table{$data[1]}[3 + $j] : q{}) }
                     my $i = 6;
                     for my $j (0 .. (scalar @list_marker) - 1) {
-                        print "\t", (defined $data[6 + $j * 2] && $data[6 + $j * 2] ne q{0} && defined $data[6 + $j * 2 + 1] && $data[6 + $j * 2 + 1] ne q{0} ? $data[6 + $j * 2] . q{/} . $data[6 + $j * 2 + 1] : q{-})
+                        print "\t", (defined $data[$i + $j * 2] && $data[$i + $j * 2] ne q{0} && defined $data[$i + $j * 2 + 1] && $data[$i + $j * 2 + 1] ne q{0} ? $data[$i + $j * 2] . q{/} . $data[$i + $j * 2 + 1] : q{-})
                           if (!defined $mask_marker[$j]);
                     }
                     print "\n";
@@ -491,7 +523,7 @@ elsif ($remap && scalar @extra > 0 && defined $genetic && -r $genetic && open($i
         ) != 0
        )
     {
-        print {*STDERR} "ERROR: blastp failed to execute: $!\n";
+        print {*STDERR} "ERROR: blastn failed to execute: $!\n";
         system('rm -f /tmp/query_' . $genetic . '.* /tmp/blast_' . $genetic . '*');
         exit 10;
     }
@@ -518,6 +550,124 @@ elsif ($remap && scalar @extra > 0 && defined $genetic && -r $genetic && open($i
     system('rm -f /tmp/query_' . $genetic . '.* /tmp/blast_' . $genetic . '*');
     print {*STDOUT} "Marker\tLG\tPosition\n";
     for my $item (keys %list2_markers) { print {*STDOUT} $item, "\t", (exists $remap{$item} ? $remap{$item}[1] . "\t" . $remap{$item}[2] : "Unk\t0"), "\n"; }
+}
+elsif ($tableS && defined $ped && -r $ped && defined $plink && -r $plink && open($in, q{<}, $plink))
+{
+    my (@list_marker, @samples, %unique, %list_markers, %list_sequences );
+
+    # PEB
+    # # Stacks v1.42;  PLINK v1.07; October 06, 2016
+    # C7	F1_dam_C7	0	0	0	0	G	T	A	A	G	T	A	G	G	...
+
+    # plink MAP
+    # # Stacks v1.42;  PLINK v1.07; October 06, 2016
+    # LSalAtl2s1	19757_13	0	4466
+    # LSalAtl2s1	19756_74	0	4550
+    # LSalAtl2s1	19491_4	0	106094
+    # LSalAtl2s1	19492_81	0	106518
+    # LSalAtl2s1	19498_31	0	118987
+    # LSalAtl2s1	19749_27	0	381049
+    while (<$in>)
+    {
+        next if (m/^#/);
+        chomp;
+        my @data = split m/\t/;
+        if (scalar @data >= 2 && defined $data[0] && defined $data[1]) { @{$list_markers{$data[1]}} = @data; push @list_marker,$data[1]; }
+    }
+    close $in;
+
+    my %tmp_list;
+    for my $item (keys %list_markers)
+    {
+        if    ($item =~ m/^(\d+)_\d+/)       { $tmp_list{$1} = $item; $tmp_list{$item} = $1; }
+        elsif ($item =~ m/^(dDocent.*):\d+/) { $tmp_list{$1} = $item; $tmp_list{$item} = $1; }
+        else                                 { $tmp_list{$item} = $item; }
+    }
+    if (scalar keys %list_markers > 0 && open($in, q{<}, $ped))
+    {
+                while (<$in>)
+                {
+                    next if (m/^#/);
+                    chomp;
+                    my @data = split m/\t/;
+                    if (scalar @data > 8)
+                    {
+                        push @samples, $data[1];
+                        for my $j (0 .. (scalar @list_marker) - 1)
+                        {
+                            if (defined $list_marker[$j] && exists $list_markers{$list_marker[$j]})
+                            {
+                                if (!exists $unique{$list_marker[$j]}) { $unique{$list_marker[$j]} = q{} }
+                                $unique{$list_marker[$j]} .= (defined $data[6 + $j * 2] && $data[6 + $j * 2] ne q{0} && defined $data[6 + $j * 2 + 1] && $data[6 + $j * 2 + 1] ne q{0} ? $data[6 + $j * 2] . $data[6 + $j * 2 + 1] : q{}) . "\t";
+                            }
+                        }
+                    }
+                }
+                close $in;
+    }
+
+    if (defined $markers && -r $markers)
+    {
+
+        if (open($in, q{<}, $markers))
+        {
+            # ## cstacks version 1.42; catalog generated on 2016-09-22 22:24:20
+            # 0	2	1	LSalAtl2s1000	1022	-	consensus	0	263_8...	CATGTTTATGTATCATTTGTACTATTATAAAACTGAAATATATATTTTTATGTTTTTGTAAAAATGTTTAATTTATTATCTATAACCATTCCTATTCGCC	0	0	0	0
+            # 0	2	2	LSalAtl2s1000	132767	+	consensus	0	263_13...	CATGGTAAATTCGTGGTTTACACTATCATTGTCAGACAAAATTGTTGTGAGTACTATCATCTTGAAGCAATGTCGATGCAAGCAATAAGATTGTAAGTAA	0	0	0	0
+            while (<$in>)
+            {
+                next if (m/^#/);
+                chomp;
+                my @data = split m/\t/;
+                if (scalar @data > 9 && defined $data[2] && defined $data[9] && exists $tmp_list{$data[2]})
+                {
+                    my $snploc;
+                    if    ($tmp_list{$data[2]} =~ m/\_(\d+)/)          { $snploc = $1; }
+                    elsif ($tmp_list{$data[2]} =~ m/dDocent.*\.(\d+)/) { $snploc = $1; }
+                    my $tmp = $unique{$tmp_list{$data[2]}};
+                    $tmp =~ s/(.)(?=.*?\1)//g;
+                    my $seq = (defined $tmp && defined $snploc ? substr($data[9], 0, $snploc) . q{[} . substr($tmp,0,length($tmp) -1) . q{]} . substr($data[9], $snploc + 1) : $data[9]);
+                    $list_sequences{$tmp_list{$data[2]}} = (int($loc) > 0 && defined $data[3] && defined $data[4] ? $data[3] . "\t" . $data[4] . "\t" . $seq : $seq);
+                }
+            }
+            close $in;
+        }
+    }
+    elsif (defined $fasta && -r $fasta)
+    {
+        if (open($in, q{<}, $fasta))
+        {
+            # >dDocent_Contig_12
+            # TGCAGAAAACACTCTCTCCCCAGACGGGTTTTGATAGAGTAGAACTCCGTCTCGATAGAAAGCAAAGTTGTTATATATATAGTAATAACTAGAGGGATTANNNNNNNNNNCATGTTTAATTTTAAAACATTTTCACACAACCTTAGATGGCTTTTATATTTAATATTCTATTCGAAATTTAAAAGATTTTGTAGCGGTGGATATTTTTGT
+            my ($seq, $header) = (q{});
+            while (<$in>)
+            {
+                next if /^\s*$/;
+                chomp;
+                if (/^>/)
+                {    # fasta header line
+                    my $h = $_;
+                    $h =~ s/^>//;
+                    if (defined $header && length $seq > 10)
+                    {
+                        $list_sequences{$header} = $seq if (exists $tmp_list{$header});
+                        $header                  = $h;
+                        $seq                     = q{};
+                    }
+                    else { $header = $h }
+                }
+                else
+                {
+                    s/\W+//;
+                    $seq .= $_;
+                }
+            }
+            if (defined $header && length $seq > 10) { $list_sequences{$header} = $seq if (exists $tmp_list{$header}); }
+            close $in;
+        }
+    }
+    print {*STDOUT} "Marker\t", join("\t", @samples), (defined $markers && -r $markers ? "\t" . 'Details' : (defined $fasta && -r $fasta ? "\t" . 'Marker' : q{})), "\n";
+    for my $item (keys %list_markers) { print {*STDOUT} $item, "\t", substr($unique{$item},0,length($unique{$item}) -1), (exists $list_sequences{$item} ? "\t" . $list_sequences{$item} : (exists $tmp_list{$item} && exists $list_sequences{$tmp_list{$item}} ? "\t" . $list_sequences{$tmp_list{$item}} : q{})), "\n"; }
 }
 elsif (scalar @extra > 0 && defined $genetic && -r $genetic && open($in, q{<}, $genetic))
 {
@@ -599,7 +749,7 @@ elsif (scalar @extra > 0 && defined $genetic && -r $genetic && open($in, q{<}, $
                         {
                             if (defined $list_full[$j] && exists $list_markers{$list_full[$j]})
                             {
-                                if (!exists $unique{$list_full[$j]}) { $unique{$list_full[$j]} = '' }
+                                if (!exists $unique{$list_full[$j]}) { $unique{$list_full[$j]} = q{} }
                                 $unique{$list_full[$j]} .= (defined $data[6 + $j * 2] && $data[6 + $j * 2] ne q{0} && defined $data[6 + $j * 2 + 1] && $data[6 + $j * 2 + 1] ne q{0} ? $data[6 + $j * 2] . $data[6 + $j * 2 + 1] : q{});
                             }
                         }
@@ -610,22 +760,34 @@ elsif (scalar @extra > 0 && defined $genetic && -r $genetic && open($in, q{<}, $
         }
         if (open($in, q{<}, $markers))
         {
-            # ## cstacks version 1.42; catalog generated on 2016-09-22 22:24:20
+            # ## cstacks version 1.48; catalog generated on 2018-09-22 22:24:20
             # 0	2	1	LSalAtl2s1000	1022	-	consensus	0	263_8...	CATGTTTATGTATCATTTGTACTATTATAAAACTGAAATATATATTTTTATGTTTTTGTAAAAATGTTTAATTTATTATCTATAACCATTCCTATTCGCC	0	0	0	0
             # 0	2	2	LSalAtl2s1000	132767	+	consensus	0	263_13...	CATGGTAAATTCGTGGTTTACACTATCATTGTCAGACAAAATTGTTGTGAGTACTATCATCTTGAAGCAATGTCGATGCAAGCAATAAGATTGTAAGTAA	0	0	0	0
+
+            # # cstacks version 2.3e; catalog generated on 2019-05-20 16:12:34
+            # 0	1	consensus	0	148_1...	CATGCATGTTACTTAAGGGTAGTTTCAGAGGAGCAAGTGGCACATCCCTCCCTCTGCATTTTCAAATGACTGTTGTTGATTTTATTAAAACAAATTCTCCAAATTAAAGTGTAAAATCTTGGTAACCTTTGGAAGTAAAGT	0	0	0
+            my $seqpos = 5;
+            my $seqid = 1;
+            my $line = <$in>;
+            if ($line =~ m/version 1/) {
+                $seqpos = 9;
+                $seqid = 2;
+            }
             while (<$in>)
             {
                 next if (m/^#/);
                 chomp;
                 my @data = split m/\t/;
-                if (scalar @data > 9 && defined $data[2] && defined $data[9] && exists $tmp_list{$data[2]})
+                if (scalar @data > $seqpos && defined $data[$seqid] && defined $data[$seqpos] && exists $tmp_list{$data[$seqid]})
                 {
                     my $snploc;
-                    if    ($tmp_list{$data[2]} =~ m/\_(\d+)/)          { $snploc = $1; }
-                    elsif ($tmp_list{$data[2]} =~ m/dDocent.*\.(\d+)/) { $snploc = $1; }
-                    $unique{$tmp_list{$data[2]}} =~ s/(.)(?=.*?\1)//g;
-                    my $seq = (exists $unique{$tmp_list{$data[2]}} && defined $snploc ? substr($data[9], 0, $snploc) . q{[} . $unique{$tmp_list{$data[2]}} . q{]} . substr($data[9], $snploc + 1) : $data[9]);
-                    $list_sequences{$tmp_list{$data[2]}} = (int($loc) > 0 && defined $data[3] && defined $data[4] ? $data[3] . "\t" . $data[4] . "\t" . $seq : $seq);
+                    if    ($tmp_list{$data[$seqid]} =~ m/\_(\d+)/)          { $snploc = $1; }
+                    elsif ($tmp_list{$data[$seqid]} =~ m/dDocent.*\.(\d+)/) { $snploc = $1; }
+                    $unique{$tmp_list{$data[$seqid]}} =~ s/(.)(?=.*?\1)//g;
+                    my $seq = (exists $unique{$tmp_list{$data[$seqid]}} && defined $snploc ? substr($data[$seqpos], 0, $snploc) . q{[} . $unique{$tmp_list{$data[$seqid]}} . q{]} . substr($data[$seqpos], $snploc + 1) : $data[$seqpos]);
+
+                    # to be check for v2+
+                    $list_sequences{$tmp_list{$data[$seqid]}} = (int($loc) > 0 && defined $data[3] && defined $data[4] ? $data[3] . "\t" . $data[4] . "\t" . $seq : $seq);
                 }
             }
             close $in;
