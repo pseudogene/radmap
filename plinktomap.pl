@@ -5,7 +5,7 @@
 # $Author: Michael Bekaert $
 #
 # RAD-tags to Genetic Map (radmap)
-# Copyright (C) 2016-2019 Bekaert M <michael.bekaert@stir.ac.uk>
+# Copyright (C) 2016-2020 Bekaert M <michael.bekaert@stir.ac.uk>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -344,7 +344,7 @@ elsif (scalar keys %parents_table > 0 && ($snpassoc || $ade) && defined $ped && 
 
     if (scalar @list_marker > 0 && open($in, q{<}, $ped))
     {
-        if ($structure)
+        if ($ade)
         {
         	my @group;
         	my %atcg = (A => 1, C => 2, G => 3, T => 4, N => 0, 0 => 0);
