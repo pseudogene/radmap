@@ -1,6 +1,6 @@
 #!/usr/bin/perl
-# $Revision: 0.16 $
-# $Date: 2020/03/04 $
+# $Revision: 0.17 $
+# $Date: 2020/05/12 $
 # $Id: plinktomap.pl $
 # $Author: Michael Bekaert $
 #
@@ -169,7 +169,7 @@ use warnings;
 use Getopt::Long;
 
 #----------------------------------------------------------
-our ($VERSION) = 0.16;
+our ($VERSION) = 0.17;
 
 #----------------------------------------------------------
 my ($threads, $female, $tableS, $remap, $lepmap, $lepmap3, $ade, $snpassoc, $edit, $loc, $lod, $plink, $ped, $parentage, $map, $genmap, $genetic, $markers, $fasta) = (10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
@@ -808,13 +808,17 @@ elsif (scalar @extra > 0 && defined $genetic && -r $genetic && open($in, q{<}, $
                 {    # fasta header line
                     my $h = $_;
                     $h =~ s/^>//;
+                    $h = $1 if ($h =~ /^(\d+)/mg);
                     if (defined $header && length $seq > 10)
                     {
-                        $list_sequences{$header} = $seq if (exists $tmp_list{$header});
+                        $list_sequences{$tmp_list{$header}} = $seq if (exists $tmp_list{$header});
                         $header                  = $h;
                         $seq                     = q{};
                     }
-                    else { $header = $h }
+                    else
+                    {
+                        $header = $h;
+                    }
                 }
                 else
                 {
