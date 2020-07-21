@@ -1,6 +1,6 @@
 #!/usr/bin/perl
-# $Revision: 0.17 $
-# $Date: 2020/05/12 $
+# $Revision: 0.18 $
+# $Date: 2020/07/22 $
 # $Id: plinktomap.pl $
 # $Author: Michael Bekaert $
 #
@@ -42,8 +42,12 @@ RAD-tags to Genetic Map (radmap)
 
     STDOUT > LepMap (linkage) input file
 
-  # R/SNPAssoc pre-processing
+  # Pre-processing
     --snpassoc    MANDATORY
+    or
+    --arff        MANDATORY
+    or
+    --ade         MANDATORY
     --plink       MANDATORY
     --ped         MANDATORY
     --meta        MANDATORY
@@ -70,12 +74,12 @@ RAD-tags to Genetic Map (radmap)
     --markers     OPTIONAL
     --fasta       OPTIONAL
     --pos         OPTIONAL
-    --table
+    --table       MANDATORY
 
   # Manual editing
     --ped         MANDATORY
     --genetic     MANDATORY
-    --edit
+    --edit        MANDATORY
 
     STDOUT > Mappable markers list
 
@@ -117,12 +121,18 @@ RAD-tags to Genetic Map (radmap)
          Select the female only map rather than male or average mapping. (requires --gmap)
     --snpassoc
          Enable R/SNPAssoc pre-processing.
+    --arff
+         Enable Weka ARFF format.
+    --ade
+         Enable R/ade pre-processing.
     --lepmap
          Enable LepMap pre-processing.
     --table
          Enable export for publication for markers and genotypes.
     --edit
          Enable Manual editing mode.
+    --select
+         Provide the list of id to select
 
 
 =head1 DESCRIPTION
@@ -169,10 +179,10 @@ use warnings;
 use Getopt::Long;
 
 #----------------------------------------------------------
-our ($VERSION) = 0.17;
+our ($VERSION) = 0.18;
 
 #----------------------------------------------------------
-my ($threads, $female, $tableS, $remap, $lepmap, $lepmap3, $ade, $snpassoc, $edit, $loc, $lod, $plink, $ped, $parentage, $map, $genmap, $genetic, $markers, $fasta) = (10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+my ($threads, $female, $tableS, $arff, $remap, $lepmap, $lepmap3, $ade, $snpassoc, $edit, $loc, $lod, $plink, $ped, $parentage, $map, $genmap, $genetic, $markers, $fasta, $selectlist) = (10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 my @extra;
 GetOptions(
            'plink:s'   => \$plink,
@@ -193,6 +203,8 @@ GetOptions(
            'table!'    => \$tableS,
            'markers:s' => \$markers,
            'fasta:s'   => \$fasta,
+           'select:s'  => \$selectlist,
+           'arff!'     => \$arff,
            'remap!'    => \$remap
           );
 my %parents_table;
@@ -212,6 +224,19 @@ if (defined $parentage && -r $parentage && open(my $in, q{<}, $parentage))
             $count_meta = scalar @data - 4 if ($count_meta < scalar @data - 4);
             @{$parents_table{$data[0]}} = @data;
         }
+    }
+    close $in;
+}
+
+my %selected;
+if (defined $selectlist && -r $selectlist && open(my $in, q{<}, $selectlist))
+{
+    while (<$in>)
+    {
+        next if (m/^#/);
+        chomp;
+        my @tmp = split m/\t/x;
+        $selected{$tmp[0]} = $tmp[0] if (exists $tmp[0]);
     }
     close $in;
 }
@@ -261,7 +286,7 @@ if (scalar keys %parents_table > 0 && ($lepmap || $lepmap3) && defined $ped && -
 }
 
 #To SNPAssoc
-elsif (scalar keys %parents_table > 0 && ($snpassoc || $ade) && defined $ped && -r $ped && defined $plink && -r $plink && open($in, q{<}, $plink))
+elsif (scalar keys %parents_table > 0 && ($snpassoc || $ade || $arff) && defined $ped && -r $ped && defined $plink && -r $plink && open($in, q{<}, $plink))
 {
     my (@list_marker, @mask_marker);
 
@@ -293,7 +318,7 @@ elsif (scalar keys %parents_table > 0 && ($snpassoc || $ade) && defined $ped && 
         next if (m/^#/);
         chomp;
         my @data = split m/\t/;
-        if (scalar @data >= 2 && defined $data[0] && defined $data[1]) { push @list_marker, $data[1]; push @mask_marker, 1 if (defined $genmap || defined $map); }
+        if (scalar @data >= 2 && defined $data[0] && defined $data[1]) { push @list_marker, $data[1]; push @mask_marker, 1 if (defined $genmap || defined $map || defined $selectlist); }
     }
     close $in;
     if (scalar @list_marker > 0 && defined $genmap && -r $genmap && open($in, q{<}, $genmap))
@@ -340,7 +365,17 @@ elsif (scalar keys %parents_table > 0 && ($snpassoc || $ade) && defined $ped && 
         }
         close $in;
     }
-    else { undef @mask_marker; }
+    if (defined $selectlist) {
+        for my $j (0 .. (scalar @list_marker) - 1) {
+        	my $tmp = $list_marker[$j];
+            if    ($tmp =~ m/^(\d+)_\d+/)       { $tmp = $1; }
+            elsif ($tmp =~ m/^(dDocent.*):\d+/) { $tmp = $1; }
+            if (exists $selected{$tmp}) {
+    	        undef $mask_marker[$j];
+    	    }
+    	}
+    }
+    #else { undef @mask_marker; }
 
     if (scalar @list_marker > 0 && open($in, q{<}, $ped))
     {
@@ -369,6 +404,30 @@ elsif (scalar keys %parents_table > 0 && ($snpassoc || $ade) && defined $ped && 
                 }
             }
             print {*STDERR} 'pop <- c(\'', join("','",@group),"');\n";
+        } elsif ($arff) {
+            print {*STDOUT} "\@RELATION default\n\n\@ATTRIBUTE id STRING\n\@ATTRIBUTE sex {F,M}\n";
+            for my $j (1 .. $count_meta) { print {*STDOUT} "\@ATTRIBUTE phenotype_$j {}\n"; }
+            for my $j (0 .. (scalar @list_marker) - 1) { print {*STDOUT} '@ATTRIBUTE ', $list_marker[$j], " {AA,AC,AG,AT,CC,CG,CT,GG,GT,TT}\n", if (!defined $mask_marker[$j]); }
+            print {*STDOUT} "\n\@DATA\n";
+
+            while (<$in>)
+            {
+                next if (m/^#/);
+                chomp;
+                my @data = split m/\t/;
+                if (scalar @data > 8 && defined $data[0] && defined $data[1] && exists $parents_table{$data[1]} && $parents_table{$data[1]}[3] =~ /^(M|F)/i)
+                {
+                    print {*STDOUT} $data[1], q{,}, ($parents_table{$data[1]}[3] =~ /^F/i ? q{F} : ($parents_table{$data[1]}[3] =~ /^M/i ? q{M} : q{?}));
+                    for my $j (1 .. $count_meta) { print {*STDOUT} q{,} , (exists $parents_table{$data[1]}[3 + $j] ? $parents_table{$data[1]}[3 + $j] : q{?}) }
+                    my $i = 6;
+                    for my $j (0 .. (scalar @list_marker) - 1) {
+                        print {*STDOUT} q{,}, (defined $data[$i + $j * 2] && $data[$i + $j * 2] ne q{0} && defined $data[$i + $j * 2 + 1] && $data[$i + $j * 2 + 1] ne q{0} ? $data[$i + $j * 2] . $data[$i + $j * 2 + 1] : q{?})
+                          if (!defined $mask_marker[$j]);
+                    }
+                    print "\n";
+                }
+            }
+        
         } else {
             print "id\tsex";
             for my $j (1 .. $count_meta) { print "\tphenotype_$j", }
@@ -667,7 +726,11 @@ elsif ($tableS && defined $ped && -r $ped && defined $plink && -r $plink && open
         }
     }
     print {*STDOUT} "Marker\t", join("\t", @samples), (defined $markers && -r $markers ? "\t" . 'Details' : (defined $fasta && -r $fasta ? "\t" . 'Marker' : q{})), "\n";
-    for my $item (keys %list_markers) { print {*STDOUT} $item, "\t", substr($unique{$item},0,length($unique{$item}) -1), (exists $list_sequences{$item} ? "\t" . $list_sequences{$item} : (exists $tmp_list{$item} && exists $list_sequences{$tmp_list{$item}} ? "\t" . $list_sequences{$tmp_list{$item}} : q{})), "\n"; }
+    for my $item (keys %list_markers) {
+        if(!%selected || exists $selected{$item}){
+            print {*STDOUT} $item, "\t", substr($unique{$item},0,length($unique{$item}) -1), (exists $list_sequences{$item} ? "\t" . $list_sequences{$item} : (exists $tmp_list{$item} && exists $list_sequences{$tmp_list{$item}} ? "\t" . $list_sequences{$tmp_list{$item}} : q{})), "\n";
+        }
+    }
 }
 elsif (scalar @extra > 0 && defined $genetic && -r $genetic && open($in, q{<}, $genetic))
 {
