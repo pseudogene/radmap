@@ -1,6 +1,6 @@
 #!/usr/bin/perl
-# $Revision: 0.19 $
-# $Date: 2020/09/21 $
+# $Revision: 0.20 $
+# $Date: 2020/10/30 $
 # $Id: plinktomap.pl $
 # $Author: Michael Bekaert $
 #
@@ -179,7 +179,7 @@ use warnings;
 use Getopt::Long;
 
 #----------------------------------------------------------
-our ($VERSION) = 0.19;
+our ($VERSION) = 0.20;
 
 #----------------------------------------------------------
 my ($threads, $female, $tableS, $arff, $remap, $lepmap, $lepmap3, $ade, $snpassoc, $edit, $loc, $lod, $plink, $ped, $parentage, $map, $genmap, $genetic, $markers, $fasta, $selectlist) = (10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
@@ -706,6 +706,7 @@ elsif ($tableS && defined $ped && -r $ped && defined $plink && -r $plink && open
             close $in;
         }
     }
+       
     elsif (defined $fasta && -r $fasta)
     {
         if (open($in, q{<}, $fasta))
@@ -723,7 +724,23 @@ elsif ($tableS && defined $ped && -r $ped && defined $plink && -r $plink && open
                     $h =~ s/^>//;
                     if (defined $header && length $seq > 10)
                     {
-                        $list_sequences{$header} = $seq if (exists $tmp_list{$header});
+                        if ($header =~ /^(\d+) pos=([^:]+):(\d+):(.) NS=/) {
+                            my ($a, $b, $c, $d) = ($1, $2, $3, $4);
+                        	if (exists $tmp_list{$a}) {
+                        	    my $snploc;
+                        	    if    ($tmp_list{$a} =~ m/\_(\d+)/)          { $snploc = $1; }
+                        	    elsif ($tmp_list{$a} =~ m/dDocent.*\.(\d+)/) { $snploc = $1; }
+                                my $tmp = $unique{$tmp_list{$a}};
+                                $tmp =~ s/(.)(?=.*?\1)//g;
+                                $tmp =~ s/\W//g;
+                        	    my $seq = (defined $snploc ? substr($seq, 0, $snploc) . q{[} . $tmp . q{]} . substr($seq, $snploc + 1) : $seq);
+
+                              $list_sequences{$tmp_list{$a}} =  $b . "\t" . $c . "\t" . $d . "\t" . $seq;
+                        	
+                        	}
+                        } else {
+                            $list_sequences{$header} = $seq if (exists $tmp_list{$header});
+                        }
                         $header                  = $h;
                         $seq                     = q{};
                     }
@@ -735,7 +752,23 @@ elsif ($tableS && defined $ped && -r $ped && defined $plink && -r $plink && open
                     $seq .= $_;
                 }
             }
-            if (defined $header && length $seq > 10) { $list_sequences{$header} = $seq if (exists $tmp_list{$header}); }
+            if (defined $header && length $seq > 10) {                         if ($header =~ /^(\d+) pos=([^:]+):(\d+):(.) NS=/) {
+                            my ($a, $b, $c, $d) = ($1, $2, $3, $4);
+                        	if (exists $tmp_list{$a}) {
+                        	    my $snploc;
+                        	    if    ($tmp_list{$a} =~ m/\_(\d+)/)          { $snploc = $1; }
+                        	    elsif ($tmp_list{$a} =~ m/dDocent.*\.(\d+)/) { $snploc = $1; }
+                                my $tmp = $unique{$tmp_list{$a}};
+                                $tmp =~ s/(.)(?=.*?\1)//g;
+                                $tmp =~ s/\W//g;
+                        	    my $seq = (defined $snploc ? substr($seq, 0, $snploc) . q{[} . $tmp . q{]} . substr($seq, $snploc + 1) : $seq);
+
+                              $list_sequences{$tmp_list{$a}} =  $b . "\t" . $c . "\t" . $d . "\t" . $seq;
+                        	
+                        	}
+                        } else {
+                            $list_sequences{$header} = $seq if (exists $tmp_list{$header});
+                        } }
             close $in;
         }
     }
@@ -799,8 +832,7 @@ elsif (scalar @extra > 0 && defined $genetic && -r $genetic && open($in, q{<}, $
         elsif ($item =~ m/^(dDocent.*):\d+/) { $tmp_list{$1} = $item; $tmp_list{$item} = $1; }
         else                                 { $tmp_list{$item} = $item; }
     }
-    if (defined $markers && -r $markers)
-    {
+
         my %unique;
         if (defined $ped && -r $ped && defined $plink && -r $plink && open($in, q{<}, $plink))
         {
@@ -835,6 +867,8 @@ elsif (scalar @extra > 0 && defined $genetic && -r $genetic && open($in, q{<}, $
                 close $in;
             }
         }
+    if (defined $markers && -r $markers)
+    {
         if (open($in, q{<}, $markers))
         {
             # ## cstacks version 1.48; catalog generated on 2018-09-22 22:24:20
@@ -870,6 +904,8 @@ elsif (scalar @extra > 0 && defined $genetic && -r $genetic && open($in, q{<}, $
             close $in;
         }
     }
+
+
     elsif (defined $fasta && -r $fasta)
     {
         if (open($in, q{<}, $fasta))
@@ -885,17 +921,29 @@ elsif (scalar @extra > 0 && defined $genetic && -r $genetic && open($in, q{<}, $
                 {    # fasta header line
                     my $h = $_;
                     $h =~ s/^>//;
-                    $h = $1 if ($h =~ /^(\d+)/mg);
                     if (defined $header && length $seq > 10)
                     {
-                        $list_sequences{$tmp_list{$header}} = $seq if (exists $tmp_list{$header});
+                        if ($header =~ /^(\d+) pos=([^:]+):(\d+):(.) NS=/) {
+                            my ($a, $b, $c, $d) = ($1, $2, $3, $4);
+                        	if (exists $tmp_list{$a}) {
+                        	    my $snploc;
+                        	    if    ($tmp_list{$a} =~ m/\_(\d+)/)          { $snploc = $1; }
+                        	    elsif ($tmp_list{$a} =~ m/dDocent.*\.(\d+)/) { $snploc = $1; }
+                                my $tmp = $unique{$tmp_list{$a}};
+                                $tmp =~ s/(.)(?=.*?\1)//g;
+                                $tmp =~ s/\W//g;
+                        	    my $seq = (defined $snploc ? substr($seq, 0, $snploc) . q{[} . $tmp . q{]} . substr($seq, $snploc + 1) : $seq);
+
+                              $list_sequences{$tmp_list{$a}} =  $b . "\t" . $c . "\t" . $d . "\t" . $seq;
+                        	
+                        	}
+                        } else {
+                            $list_sequences{$header} = $seq if (exists $tmp_list{$header});
+                        }
                         $header                  = $h;
                         $seq                     = q{};
                     }
-                    else
-                    {
-                        $header = $h;
-                    }
+                    else { $header = $h }
                 }
                 else
                 {
@@ -903,10 +951,27 @@ elsif (scalar @extra > 0 && defined $genetic && -r $genetic && open($in, q{<}, $
                     $seq .= $_;
                 }
             }
-            if (defined $header && length $seq > 10) { $list_sequences{$header} = $seq if (exists $tmp_list{$header}); }
+            if (defined $header && length $seq > 10) {                         if ($header =~ /^(\d+) pos=([^:]+):(\d+):(.) NS=/) {
+                            my ($a, $b, $c, $d) = ($1, $2, $3, $4);
+                        	if (exists $tmp_list{$a}) {
+                        	    my $snploc;
+                        	    if    ($tmp_list{$a} =~ m/\_(\d+)/)          { $snploc = $1; }
+                        	    elsif ($tmp_list{$a} =~ m/dDocent.*\.(\d+)/) { $snploc = $1; }
+                                my $tmp = $unique{$tmp_list{$a}};
+                                $tmp =~ s/(.)(?=.*?\1)//g;
+                                $tmp =~ s/\W//g;
+                        	    my $seq = (defined $snploc ? substr($seq, 0, $snploc) . q{[} . $tmp . q{]} . substr($seq, $snploc + 1) : $seq);
+
+                              $list_sequences{$tmp_list{$a}} =  $b . "\t" . $c . "\t" . $d . "\t" . $seq;
+                        	
+                        	}
+                        } else {
+                            $list_sequences{$header} = $seq if (exists $tmp_list{$header});
+                        } }
             close $in;
         }
     }
+
     print {*STDOUT} "Marker\tLG\tPosition\t", join("\t", @extra), (defined $markers && -r $markers ? "\t" . 'Details' : (defined $fasta && -r $fasta ? "\t" . 'Marker' : q{})), "\n";
     for my $item (keys %list_markers) { print {*STDOUT} join("\t", @{$list_markers{$item}}), (exists $list_sequences{$item} ? "\t" . $list_sequences{$item} : (exists $tmp_list{$item} && exists $list_sequences{$tmp_list{$item}} ? "\t" . $list_sequences{$tmp_list{$item}} : q{})), "\n"; }
 }
@@ -946,5 +1011,5 @@ elsif ($edit && defined $plink && -r $plink && defined $genetic && -r $genetic &
 else
 {
     print {*STDERR}
-      "..:: RAD-tags to Genetic Map ::..\n\nUsage: $0 [options]\n\n# LepMap pre-processing\n  --lepmap      MANDATORY\n  --ped         MANDATORY\n  --meta        MANDATORY\n\n  STDOUT > LepMap (linkage) input file\n\n# R/SNPAssoc pre-processing\n  --snpassoc    MANDATORY\n  --plink       MANDATORY\n  --ped         MANDATORY\n  --meta        MANDATORY\n  --map         OPTIONAL\n  --gmap        OPTIONAL\n  --female      OPTIONAL\n\n  STDOUT > SNPassoc input file\n  STDERR 2> Genetic Map\n\n# Post GWAS processing\n  --genetic     MANDATORY\n  --extra       MANDATORY (at least once)\n  --markers     OPTIONAL\n  --fasta       OPTIONAL\n  --pos         OPTIONAL\n  --lod         OPTIONAL\n  --ped         OPTIONAL (in association with --plink)\n  --plink         OPTIONAL (in association with --ped)\n\n  STDOUT > Genetic Map\n  \nOptions\n  --meta <pedigree file>\n       The pedigree file consists of on columns 1-4+. The columns are separated by\n       tabs. The columns 1-4 are individual name, father, mother and sex; the next\n       columns are for extra phenotypes: phenotype_1 to phenotype_n. The phenotypes\n       are not required, but will be helpful for the GWAS analysis.\n         sample     father  mother  sex  phenotype_1\n         F1_C2_070  P0_sir  P0_dam  M    30\n         F1_C2_120  P0_sir  P0_dam  F    1\n         P0_dam     0       0       F    -\n         P0_sir     0       0       M    -\n  --plink <plink map file>\n       PLINK MAP file path with full haplotypes.\n  --ped <plink ped file>\n       PLINK PED file path with full haplotypes.\n  --map <mappable markers list>\n       Mappable markers list as generated by LepMap \"SeparateChromosomes\" and\n       \"JoinSingles\" functions.\n  --gmap <ordered markers file>\n       Ordered genetic map generated by LepMap.\n  --genetic <genetic map file>\n       Genetic Map as generated by R/SNPAssoc pre-processing step.\n  --markers <batch_<n>.catalog.tags.tsv file>\n       Path to STACKS catalog.tag file, including marker sequences and positions.\n       (incompatible with --fasta)\n  --fasta <uniq.full.fasta file>\n       Path to dDocent uniq.full.fasta file, including marker sequences. (incompatible\n       with --markers)\n  --extra\n       GWAS results generated by R/SNPassoc (csv format) to be added to the genetic map.\n  --lod\n       Convert the P-value of the GWAS results to LOD (LOD=-log(P-value)/log(10)).\n  --pos\n       Provide the marker chromosome/contig and location. (requires --markers)\n  --female\n       Select the female only map rather than male or average mapping. (requires --gmap)\n  --snpassoc\n       Enable R/SNPAssoc pre-processing.\n  --lepmap\n       Enable LepMap pre-processing.\n\n";
+      "..:: RAD-tags to Genetic Map ::..\n\nUsage: $0 [options]\n\n# LepMap pre-processing\n  --lepmap      MANDATORY\n  --ped         MANDATORY\n  --meta        MANDATORY\n\n  STDOUT > LepMap (linkage) input file\n\n# R/SNPAssoc pre-processing\n  --snpassoc    MANDATORY\n  --plink       MANDATORY\n  --ped         MANDATORY\n  --meta        MANDATORY\n  --map         OPTIONAL\n  --gmap        OPTIONAL\n  --female      OPTIONAL\n\n  STDOUT > SNPassoc input file\n  STDERR 2> Genetic Map\n\n# Post GWAS processing\n  --genetic     MANDATORY\n  --extra       MANDATORY (at least once)\n  --markers     OPTIONAL\n  --fasta       OPTIONAL\n  --pos         OPTIONAL\n  --lod         OPTIONAL\n  --ped         OPTIONAL (in association with --plink)\n  --plink       OPTIONAL (in association with --ped)\n\n  STDOUT > Genetic Map\n  \nOptions\n  --meta <pedigree file>\n       The pedigree file consists of on columns 1-4+. The columns are separated by\n       tabs. The columns 1-4 are individual name, father, mother and sex; the next\n       columns are for extra phenotypes: phenotype_1 to phenotype_n. The phenotypes\n       are not required, but will be helpful for the GWAS analysis.\n         sample     father  mother  sex  phenotype_1\n         F1_C2_070  P0_sir  P0_dam  M    30\n         F1_C2_120  P0_sir  P0_dam  F    1\n         P0_dam     0       0       F    -\n         P0_sir     0       0       M    -\n  --plink <plink map file>\n       PLINK MAP file path with full haplotypes.\n  --ped <plink ped file>\n       PLINK PED file path with full haplotypes.\n  --map <mappable markers list>\n       Mappable markers list as generated by LepMap \"SeparateChromosomes\" and\n       \"JoinSingles\" functions.\n  --gmap <ordered markers file>\n       Ordered genetic map generated by LepMap.\n  --genetic <genetic map file>\n       Genetic Map as generated by R/SNPAssoc pre-processing step.\n  --markers <batch_<n>.catalog.tags.tsv file>\n       Path to STACKS catalog.tag file, including marker sequences and positions.\n       (incompatible with --fasta)\n  --fasta <uniq.full.fasta file>\n       Path to dDocent uniq.full.fasta file, including marker sequences. (incompatible\n       with --markers)\n  --extra\n       GWAS results generated by R/SNPassoc (csv format) to be added to the genetic map.\n  --lod\n       Convert the P-value of the GWAS results to LOD (LOD=-log(P-value)/log(10)).\n  --pos\n       Provide the marker chromosome/contig and location. (requires --markers)\n  --female\n       Select the female only map rather than male or average mapping. (requires --gmap)\n  --snpassoc\n       Enable R/SNPAssoc pre-processing.\n  --lepmap\n       Enable LepMap pre-processing.\n\n";
 }
